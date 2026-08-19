@@ -57,6 +57,10 @@
 是**瀏覽器分頁沒有重新整理、還在看 HMR 更新前的舊畫面**——強制重新整理（Cmd+Shift+R）後確認
 清楚了。**已經使用者確認 OK** |
 | 搜尋店名輸入框 + 行政區篩選下拉選單 | ✅ 完成程式碼，⚠️ **實測失敗過一次，已修正** | 2026-08-19 使用者要求新增。**行政區篩選**：搭配先前的分區匯入，匯入時已經知道每筆餐廳來自哪個行政區查詢，`toRestaurantUpsertInput` 加 `district` 參數存進 DB（已重新跑 `yarn import:restaurants` 回填，1797 筆裡 1688 筆有行政區），新增 `prismaClient.listDistricts`／`districtService`／`district.list` tRPC procedure／`useDistricts` hook，比照 `category` 的四層寫法。**店名搜尋**：`searchRestaurantsInputSchema` 加 `keyword`，`findRestaurants` 用 Prisma `contains`+`insensitive` 模糊比對；前端用新寫的 `useDebouncedValue` hook（300ms debounce，2 個單元測試用 `vi.useFakeTimers` 驗證）避免每個按鍵都打一次 API。切換行政區/輸入關鍵字都會重置回第 1 頁。**使用者實測回報「兩個篩選都完全沒作用，畫面跳動一下但資料沒變」**——根因是 `restaurantSearchService.ts` 的 `searchRestaurants` 呼叫 `findRestaurants` 時漏傳 `district`/`keyword` 這兩個欄位（Client 層跟型別都有加，Service 層組合呼叫時忘記接線），UI 送出的篩選條件在後端被悄悄丟掉。已修正並補上專門測這個接線的單元測試（mock `findRestaurants`，驗證 `searchRestaurants` 有把 input 的每個欄位都轉呼叫過去），實際 revert 一次確認這個測試真的會抓到這個 bug。`HomePage.test.tsx` 新增 2 個、`restaurantSearchService.test.ts` 新增 1 個，共 45 個全過。**尚未經使用者重新測試確認修好** |
+| 主題色切換（深色/淺色，淺色用米色系不用死白） | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | 2026-08-19 使用者要求：「因為 code review 達限制沒觸發」時新增的小功能。淺色主題背景 `#f3ebd8`（米色）、文字 `#4a3c2c`（深棕），不是純白/純黑。`src/lib/theme.ts` 純函式 `resolveTheme`（決定套用哪個主題：手動選過的 > 系統偏好 > 淺色）/`toggleTheme`，6 個單元測試。`NavBar.tsx` 改成 client component 加切換按鈕，`layout.tsx` 依照 Next.js 官方「[Preventing Flash before Hydration](node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md)」文件的作法：`<head>` 塞一段 inline script 在瀏覽器繪製前讀 localStorage 設定 `data-theme` 屬性，`<html>` 加 `suppressHydrationWarning`，`NavBar` 用 `useLayoutEffect`（不是 `useEffect`）在繪製前重新套用一次（因為 dev 模式 React Strict Mode 重新掛載會把 inline script 設的屬性清掉，這是官方文件明確提到的已知情況）。`tests/setup.ts` 補了 `window.matchMedia` 的假實作（jsdom 沒有內建）。`NavBar.test.tsx` 新增 4 個測試涵蓋：跟隨系統偏好、已存過的選擇優先於系統偏好、點擊會寫回 localStorage 並更新 DOM 屬性。共 55 個測試全過。使用者接著要求按鈕拿掉文字/emoji，只留簡約線條圖示——已改成
+`src/components/icons/ThemeIcons.tsx` 手寫的 inline SVG（`SunIcon`/`MoonIcon`，
+stroke 線條風格，`currentColor` 跟著 `text-foreground` 走，沒有另外裝圖示套件），
+按鈕保留 `aria-label` 供螢幕閱讀器使用 |
 | 使用者帳號/眾包回報 UI | 🔲 未開始（Phase 2） | schema 已預留，MVP 刻意不做 |
 | 地圖檢視 | 🔲 未開始（Phase 2） | |
 
