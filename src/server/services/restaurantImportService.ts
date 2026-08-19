@@ -46,8 +46,11 @@ export const TAICHUNG_DISTRICTS = [
 ] as const;
 
 // 純函式：把一筆 Places 搜尋結果轉成 DB upsert 需要的資料，方便單元測試。
-// district 是這筆結果來自哪個行政區查詢（用來讓使用者可以用行政區篩選），
-// 不是 Google Places 官方回傳的欄位，是匯入當下由查詢字串帶入的。
+// district 是這筆結果「來自哪個行政區查詢」（查詢字串帶入的，不是 Google Places
+// 官方回傳的欄位）——Text Search 是相關性排序，不是行政區窮舉，同一筆結果可能因為
+// 排名而出現在鄰近行政區的查詢裡，不能直接信任查詢來源就是這筆店家實際所在的行政區。
+// 這裡用 Google 回傳的權威地址資料（place.address）反查地址字串是否真的包含這個
+// 行政區名稱來驗證，驗證不過就存 null，不寫入未經驗證的行政區。
 export const toRestaurantUpsertInput = (
   place: PlaceSearchResult,
   categoryId: string,
@@ -60,7 +63,7 @@ export const toRestaurantUpsertInput = (
   lat: place.lat,
   lng: place.lng,
   phone: place.phone,
-  district,
+  district: district !== null && place.address.includes(district) ? district : null,
   city,
   categoryId,
 });
