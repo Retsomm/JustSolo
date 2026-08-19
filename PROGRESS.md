@@ -87,6 +87,26 @@
    `!.env.example` 排除規則修正。**教訓**：`.env*` 這種萬用字元規則要小心會不會誤殺明確想要
    commit 的範例檔案，之後新增任何「範例/模板」性質的 env 檔案，記得檢查 `git status --ignored`
    確認真的有被追蹤到，不要只憑感覺以為 `.env.example` 這種常見檔名會自動被放行。
+10. **`globals.css` 的 `body { color: var(--foreground) }` 會隨 `prefers-color-scheme: dark`
+    自動翻轉成接近白色（`#ededed`）**：這是 `create-next-app` 官方模板內建的自動深色模式。
+    任何元件如果自己寫死背景色（例如 `bg-white`、`hover:bg-zinc-100`），卻沒有明確指定文字
+    顏色，文字會繼承這個會翻轉的 `--foreground` 變數——瀏覽器/OS 在深色模式時就會變成
+    「白底白字」看不清楚。**這個坑 2026-08-19 連續踩了兩次**：第一次是 `NavBar.tsx` 的
+    `bg-white` 配沒寫顏色的 `<span>`；改用 `bg-background`/`text-foreground` 這組會一起翻轉
+    的 CSS 變數修好 NavBar 之後，`Pagination.tsx` 的按鈕 `hover:bg-zinc-100`（寫死的淺色
+    hover 背景）配沒寫顏色的按鈕文字，一樣的問題又發生了一次，使用者當面指出「跟一開始導覽列
+    一樣白底白字」。
+    **教訓（已通用適用全專案，不是只有 NavBar 這一個元件）**：只要一個元素或它的任何狀態
+    （含 `hover:`/`disabled:` 等 variant）明確寫死了背景色，就要連文字顏色也一起明確寫死，
+    兩者成對出現、不能只寫一半：
+    - 想要背景/文字都跟著系統深色模式一起翻轉：兩個都用 `bg-background`/`text-foreground`
+      這組 CSS 變數（`NavBar.tsx` 的做法）。
+    - 想要固定樣式、不受系統深色模式影響（`Pagination.tsx` 目前的做法，因為頁面其餘內容也是
+      用固定的 zinc-* 色階、不隨系統深色模式變化）：背景跟文字都用固定色階，例如
+      `hover:bg-zinc-100` 要配 `text-zinc-700`，不能讓文字繼續繼承會翻轉的預設值。
+    新增/修改任何有明確背景色（含 hover/active 等互動狀態）的元件之前，先
+    `grep -rn "bg-white\|bg-zinc\|bg-black\|bg-background" src/` 檢查該元素跟它所有互動狀態
+    是否都有配對的明確文字顏色，不要只檢查預設狀態就以為沒事。
 
 ## 下次接續開發時，建議的下一步（依優先序）
 
@@ -115,12 +135,17 @@
   （scaffold/設定檔/schema/測試骨架）全部都能在本環境驗證（build/test/typecheck/curl 都跑過），
   所以可以直接 commit+push；但之後一旦動到**需要使用者用瀏覽器實際操作確認的 UI 功能**，
   改完要停在工作目錄，等使用者說「測試 OK」才能 commit。
-- **2026-08-19 起的推送流程（覆蓋上一條的「commit+push」部分，驗證方式改變）**：
+- **2026-08-19 起的推送流程，同一天糾正過一次方向，以下是糾正後的版本**：
   1. push 目標是 `origin dev`，不是 `main`——push 到 `dev` 會觸發 CodeRabbit 對變更做 code review。
-  2. **Claude 不用自己啟動 dev server / curl API / 跑完整 `yarn build` 來驗證**，使用者會自己
-     在本機測試過才繼續。但 TDD 的紅燈/綠燈循環（寫測試、跑 `yarn test`）跟 `tsc --noEmit`
-     typecheck 照做，這是寫程式本身的一部分，不算「額外驗證」。
-  3. 對話裡仍然不要宣稱功能「已確認可用」，只能說「寫完了、單元測試過，等你本機測」。
+  2. **正確順序是「使用者本機測試過 UI/功能，確認沒問題 → 才 push 到 dev」，不是「Claude 先
+     push，使用者事後拉下來測」。** 這輪一開始誤解成後者，連續 push 了 3 個 commit（含一個
+     NavBar 白底白字看不清楚的視覺 bug）都沒等使用者驗證，被當面糾正。
+  3. **改完程式碼、單元測試/typecheck/lint 都過之後，先停在工作目錄，不要主動 commit/push**，
+     跟使用者說「改完了、單元測試過，等你本機測過再幫你推」，等使用者明確說測過了才動手。
+  4. Claude 不用自己啟動 dev server / curl API 做「執行期驗證」，那是使用者本機測試會做的事；
+     但 TDD 的紅燈/綠燈循環（`yarn test`）跟 `tsc --noEmit` typecheck 照做，這是寫程式本身的
+     一部分，跟「push 前要不要等使用者測試」是兩件事。
+  5. 對話裡仍然不要宣稱功能「已確認可用」，只能說「寫完了、單元測試過，等你本機測」。
 - **使用者會同時開兩個 Claude Code session 改同一份工作目錄**（這個 CLI session ＋ VS Code
   extension 裡的另一個 session），通常是把 CodeRabbit 對 `dev` push 的 review 建議貼給 VS Code
   那邊套用。2026-08-19 實際發生過：`placesClient.ts`／`restaurantImportService.ts` 在這個

@@ -20,7 +20,7 @@ export const Pagination = ({ page, totalPages, onPageChange }: PaginationProps) 
         aria-label="上一頁"
         disabled={page <= 1}
         onClick={() => onPageChange(page - 1)}
-        className="rounded border border-zinc-300 px-2 py-1 text-sm disabled:opacity-40"
+        className="cursor-pointer rounded border border-zinc-300 px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
       >
         ←
       </button>
@@ -39,10 +39,10 @@ export const Pagination = ({ page, totalPages, onPageChange }: PaginationProps) 
             type="button"
             aria-current={item === page ? "page" : undefined}
             onClick={() => onPageChange(item)}
-            className={`min-w-8 rounded border px-2 py-1 text-sm ${
+            className={`min-w-8 cursor-pointer rounded border px-2 py-1 text-sm ${
               item === page
                 ? "border-zinc-900 bg-zinc-900 text-white"
-                : "border-zinc-300"
+                : "border-zinc-300 text-zinc-700 hover:bg-zinc-100"
             }`}
           >
             {item}
@@ -55,7 +55,7 @@ export const Pagination = ({ page, totalPages, onPageChange }: PaginationProps) 
         aria-label="下一頁"
         disabled={page >= totalPages}
         onClick={() => onPageChange(page + 1)}
-        className="rounded border border-zinc-300 px-2 py-1 text-sm disabled:opacity-40"
+        className="cursor-pointer rounded border border-zinc-300 px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
       >
         →
       </button>
