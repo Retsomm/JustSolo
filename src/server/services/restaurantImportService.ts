@@ -46,10 +46,16 @@ export const TAICHUNG_DISTRICTS = [
 ] as const;
 
 // 純函式：把一筆 Places 搜尋結果轉成 DB upsert 需要的資料，方便單元測試。
+// district 是這筆結果「來自哪個行政區查詢」（查詢字串帶入的，不是 Google Places
+// 官方回傳的欄位）——Text Search 是相關性排序，不是行政區窮舉，同一筆結果可能因為
+// 排名而出現在鄰近行政區的查詢裡，不能直接信任查詢來源就是這筆店家實際所在的行政區。
+// 這裡用 Google 回傳的權威地址資料（place.address）反查地址字串是否真的包含這個
+// 行政區名稱來驗證，驗證不過就存 null，不寫入未經驗證的行政區。
 export const toRestaurantUpsertInput = (
   place: PlaceSearchResult,
   categoryId: string,
   city: string,
+  district: string | null,
 ): RestaurantUpsertInput => ({
   placeId: place.placeId,
   name: place.name,
@@ -57,6 +63,7 @@ export const toRestaurantUpsertInput = (
   lat: place.lat,
   lng: place.lng,
   phone: place.phone,
+  district: district !== null && place.address.includes(district) ? district : null,
   city,
   categoryId,
 });
@@ -78,11 +85,11 @@ export const importCityRestaurants = async (
   city: string,
   onAreaComplete?: (area: string, importedInArea: number) => void,
 ): Promise<number> => {
-  const areas = buildDistrictAreas(city);
   const seenPlaceIds = new Set<string>();
   let importedCount = 0;
 
-  for (const area of areas) {
+  for (const district of TAICHUNG_DISTRICTS) {
+    const area = `${city}${district}`;
     const searchResults = await searchRestaurantsInArea(area);
     const places = filterPlacesInTaichung(searchResults);
     let importedInArea = 0;
@@ -93,7 +100,7 @@ export const importCityRestaurants = async (
 
       const dbCategory = await findOrCreateCategory(place.categoryName);
       await upsertRestaurantByPlaceId(
-        toRestaurantUpsertInput(place, dbCategory.id, city),
+        toRestaurantUpsertInput(place, dbCategory.id, city, district),
       );
       importedCount += 1;
       importedInArea += 1;

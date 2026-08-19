@@ -1,15 +1,18 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Home from "@/app/page";
 import { useCategories } from "@/hooks/useCategories";
+import { useDistricts } from "@/hooks/useDistricts";
 import { useRestaurantSearch } from "@/hooks/useRestaurantSearch";
 import type { PaginatedRestaurants, RestaurantSearchResult } from "@/types/restaurant";
 
 vi.mock("@/hooks/useCategories");
+vi.mock("@/hooks/useDistricts");
 vi.mock("@/hooks/useRestaurantSearch");
 
 const mockedUseCategories = vi.mocked(useCategories);
+const mockedUseDistricts = vi.mocked(useDistricts);
 const mockedUseRestaurantSearch = vi.mocked(useRestaurantSearch);
 
 const soloSeatYesRestaurant: RestaurantSearchResult = {
@@ -39,6 +42,11 @@ beforeEach(() => {
     data: [{ id: "c1", name: "燒肉" }],
     isLoading: false,
   } as unknown as ReturnType<typeof useCategories>);
+
+  mockedUseDistricts.mockReturnValue({
+    data: ["西區", "北屯區"],
+    isLoading: false,
+  } as unknown as ReturnType<typeof useDistricts>);
 
   mockedUseRestaurantSearch.mockReturnValue({
     data: makePage(),
@@ -79,6 +87,19 @@ describe("首頁", () => {
 
     expect(mockedUseRestaurantSearch).toHaveBeenLastCalledWith(
       expect.objectContaining({ category: "燒肉", page: 1 }),
+    );
+  });
+
+  it("顯示行政區選項，選擇行政區會用該行政區重新呼叫搜尋 hook，並重置到第 1 頁", async () => {
+    render(<Home />);
+
+    expect(screen.getByRole("option", { name: "西區" })).toBeInTheDocument();
+
+    const select = screen.getByRole("combobox", { name: "行政區" });
+    await userEvent.selectOptions(select, "西區");
+
+    expect(mockedUseRestaurantSearch).toHaveBeenLastCalledWith(
+      expect.objectContaining({ district: "西區", page: 1 }),
     );
   });
 
@@ -127,5 +148,35 @@ describe("首頁", () => {
     render(<Home />);
 
     expect(screen.getByRole("button", { name: "上一頁" })).toBeDisabled();
+  });
+});
+
+describe("首頁：店名搜尋", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("輸入店名，debounce 時間過後才會用 keyword 重新呼叫搜尋 hook，並重置到第 1 頁", () => {
+    render(<Home />);
+
+    const input = screen.getByRole("textbox", { name: "搜尋店名" });
+    fireEvent.change(input, { target: { value: "燒肉" } });
+
+    // debounce 還沒到，不應該已經用新的 keyword 呼叫
+    expect(mockedUseRestaurantSearch).not.toHaveBeenLastCalledWith(
+      expect.objectContaining({ keyword: "燒肉" }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(mockedUseRestaurantSearch).toHaveBeenLastCalledWith(
+      expect.objectContaining({ keyword: "燒肉", page: 1 }),
+    );
   });
 });

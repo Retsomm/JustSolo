@@ -57,6 +57,8 @@ export const searchRestaurants = async (
 ): Promise<PaginatedRestaurants> => {
   const restaurants = await findRestaurants({
     category: input.category,
+    district: input.district,
+    keyword: input.keyword,
     city: input.city,
   });
 

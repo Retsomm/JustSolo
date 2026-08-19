@@ -52,7 +52,9 @@
 | 固定導覽列（NavBar） | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | `src/components/NavBar.tsx`，`fixed top-0` 固定在頁面最上方，`src/app/layout.tsx` 引入；`page.tsx` 的 `<main>` 加了 `pt-20` 避免內容被蓋住 |
 | 分頁（每頁 10 筆＋分頁按鈕） | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | 2026-08-19 使用者要求：每頁顯示 10 筆，下方分頁按鈕樣式「← 1 2 .. 目前頁 .. 倒數第二頁 最後一頁 →」。後端：`searchRestaurantsInputSchema` 加 `page` 欄位，Service 層新增純函式 `paginate`（切頁＋算 totalPages，5 個單元測試）；前端：`src/lib/pagination.ts` 的純函式 `buildPaginationItems` 算按鈕要顯示哪些頁碼（6 個單元測試涵蓋頭尾重疊/刪節號情境），`src/components/Pagination.tsx` 是純呈現元件，只有 1 頁時不顯示；切換分類/單人座位篩選會重置回第 1 頁（`HomePage.test.tsx` 新增 3 個分頁互動測試） |
 | 餐廳詳情頁 | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | MVP Must-have 清單裡最後一個沒做的功能。`placesClient.ts` field mask 加 `nationalPhoneNumber`（`PlaceSearchResult`/`RestaurantUpsertInput` 都補上 `phone` 欄位並貫穿 Client→Service→Import script）；新增 `RestaurantDetail` 型別、`prismaClient.findRestaurantById`、`restaurant.getById` tRPC procedure、`useRestaurantDetail` hook；`/restaurant/[id]` route（`page.tsx` 是 server component 拆 `params`，`RestaurantDetailView.tsx` 是實際渲染的 client component）；首頁卡片改用 `<Link>` 包住可以點進去。已重新跑過 `yarn import:restaurants` 回填電話（64 筆裡 59 筆有電話）。單元測試新增 4 個（`RestaurantDetailView.test.tsx`），共 39 個全過 |
-| 全站色彩改用 `bg-background`/`text-foreground` 統一 token | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | 2026-08-19 使用者截圖回報「預設商店卡片看不清楚，hover 顏色太亮」。根因：`page.tsx`／`Pagination.tsx`／`RestaurantDetailView.tsx` 當初用固定 `zinc-*` 色階寫的，跟已經改用會翻轉的 `bg-background`/`text-foreground`（見上方「已知的坑」第 10 條）的 `NavBar.tsx` 混用——使用者系統是深色模式，`<main>` 背景跟著變黑，但卡片文字還是寫死的深色，hover 又是寫死的近白色。已把**全部**元件統一改用 `bg-background`/`text-foreground`（次要文字用透明度修飾符分層次，例如 `text-foreground/60`；hover 用 `hover:bg-foreground/5`；選中狀態用 `bg-foreground text-background` 顏色互換），用 `yarn build` 實測確認有正確編譯出 `color-mix()` CSS，`grep -rn "zinc-\|bg-white\|text-white\|bg-black\|text-black" src/` 確認全專案已無殘留固定色階。**首頁確認過 OK**；同一輪截圖也發現詳情頁內容太淡看不清楚——`RestaurantDetailView.tsx` 原本地址/電話/單人座位狀態用 `text-foreground/60`~`/70`，透明度疊在近黑背景上讀起來太暗，已把這三個核心資訊（使用者查詳情頁最在意的內容）改成不加透明度修飾符的 `text-foreground`（跟標題同亮度），只有真正次要的返回連結/分類標籤保留較淡的 `/60`~`/70`。**尚未經使用者確認這次夠亮** |
+| 全站色彩改用 `bg-background`/`text-foreground` 統一 token | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | 2026-08-19 使用者截圖回報「預設商店卡片看不清楚，hover 顏色太亮」。根因：`page.tsx`／`Pagination.tsx`／`RestaurantDetailView.tsx` 當初用固定 `zinc-*` 色階寫的，跟已經改用會翻轉的 `bg-background`/`text-foreground`（見上方「已知的坑」第 10 條）的 `NavBar.tsx` 混用——使用者系統是深色模式，`<main>` 背景跟著變黑，但卡片文字還是寫死的深色，hover 又是寫死的近白色。已把**全部**元件統一改用 `bg-background`/`text-foreground`（次要文字用透明度修飾符分層次，例如 `text-foreground/60`；hover 用 `hover:bg-foreground/5`；選中狀態用 `bg-foreground text-background` 顏色互換），用 `yarn build` 實測確認有正確編譯出 `color-mix()` CSS，`grep -rn "zinc-\|bg-white\|text-white\|bg-black\|text-black" src/` 確認全專案已無殘留固定色階。**首頁確認過 OK**；同一輪截圖也發現詳情頁內容太淡看不清楚——`RestaurantDetailView.tsx` 原本地址/電話/單人座位狀態用 `text-foreground/60`~`/70`，透明度疊在近黑背景上讀起來太暗，已把這三個核心資訊（使用者查詳情頁最在意的內容）改成不加透明度修飾符的 `text-foreground`（跟標題同亮度），只有真正次要的返回連結/分類標籤保留較淡的 `/60`~`/70`。使用者一度回報「還是看不清楚」，<br>追查發現不是顏色邏輯的問題（用 curl 直接檢查編譯後的 CSS 規則跟 dev server 回應確認過都是對的），<br>是**瀏覽器分頁沒有重新整理、還在看 HMR 更新前的舊畫面**——強制重新整理（Cmd+Shift+R）後確認<br>清楚了。**已經使用者確認 OK** |
+| 搜尋店名輸入框 + 行政區篩選下拉選單 | ✅ 完成程式碼，⚠️ **實測失敗過一次，已修正** | 2026-08-19 使用者要求新增。**行政區篩選**：搭配先前的分區匯入，匯入時已經知道每筆餐廳來自哪個行政區查詢，`toRestaurantUpsertInput` 加 `district` 參數存進 DB（已重新跑 `yarn import:restaurants` 回填，1797 筆裡 1688 筆有行政區），新增 `prismaClient.listDistricts`／`districtService`／`district.list` tRPC procedure／`useDistricts` hook，比照 `category` 的四層寫法。**店名搜尋**：`searchRestaurantsInputSchema` 加 `keyword`，`findRestaurants` 用 Prisma `contains`+`insensitive` 模糊比對；前端用新寫的 `useDebouncedValue` hook（300ms debounce，2 個單元測試用 `vi.useFakeTimers` 驗證）避免每個按鍵都打一次 API。切換行政區/輸入關鍵字都會重置回第 1 頁。**使用者實測回報「兩個篩選都完全沒作用，畫面跳動一下但資料沒變」**——根因是 `restaurantSearchService.ts` 的 `searchRestaurants` 呼叫 `findRestaurants` 時漏傳 `district`/`keyword` 這兩個欄位（Client 層跟型別都有加，Service 層組合呼叫時忘記接線），UI 送出的篩選條件在後端被悄悄丟掉。已修正並補上專門測這個接線的單元測試（mock `findRestaurants`，驗證 `searchRestaurants` 有把 input 的每個欄位都轉呼叫過去），實際 revert 一次確認這個測試真的會抓到這個 bug。`HomePage.test.tsx` 新增 2 個、`restaurantSearchService.test.ts` 新增 1 個，共 45 個全過。**尚未經使用者重新測試確認修好** |
+| 主題色切換（深色/淺色，淺色用米色系不用死白） | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | 2026-08-19 使用者要求：「因為 code review 達限制沒觸發」時新增的小功能。淺色主題背景 `#f3ebd8`（米色）、文字 `#4a3c2c`（深棕），不是純白/純黑。`src/lib/theme.ts` 純函式 `resolveTheme`（決定套用哪個主題：手動選過的 > 系統偏好 > 淺色）/`toggleTheme`，6 個單元測試。`NavBar.tsx` 改成 client component 加切換按鈕，`layout.tsx` 依照 Next.js 官方「[Preventing Flash before Hydration](node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md)」文件的作法：`<head>` 塞一段 inline script 在瀏覽器繪製前讀 localStorage 設定 `data-theme` 屬性，`<html>` 加 `suppressHydrationWarning`，`NavBar` 用 `useLayoutEffect`（不是 `useEffect`）在繪製前重新套用一次（因為 dev 模式 React Strict Mode 重新掛載會把 inline script 設的屬性清掉，這是官方文件明確提到的已知情況）。`tests/setup.ts` 補了 `window.matchMedia` 的假實作（jsdom 沒有內建）。`NavBar.test.tsx` 新增 4 個測試涵蓋：跟隨系統偏好、已存過的選擇優先於系統偏好、點擊會寫回 localStorage 並更新 DOM 屬性。共 55 個測試全過。使用者接著要求按鈕拿掉文字/emoji，只留簡約線條圖示——已改成<br>`src/components/icons/ThemeIcons.tsx` 手寫的 inline SVG（`SunIcon`/`MoonIcon`，<br>stroke 線條風格，`currentColor` 跟著 `text-foreground` 走，沒有另外裝圖示套件），<br>按鈕保留 `aria-label` 供螢幕閱讀器使用 |
 | 使用者帳號/眾包回報 UI | 🔲 未開始（Phase 2） | schema 已預留，MVP 刻意不做 |
 | 地圖檢視 | 🔲 未開始（Phase 2） | |
 
@@ -148,6 +150,29 @@
     多個更小範圍的查詢字串各自查一次（這裡是台中市 29 個行政區），靠 `placeId` 去重合併
     （見 `importCityRestaurants` 用 `Set<string>` 追蹤已處理過的 `placeId`）。這個限制對任何
     用 Google Places Text Search 做「列出某地區所有 X」的匯入情境都適用，不限這個專案。
+15. **懷疑「改了程式碼但畫面沒變」時，先用 `curl` 直接檢查 dev server 實際回應的內容，
+    不要先假設是自己的邏輯錯了**：2026-08-19 使用者回報詳情頁改完顏色還是看不清楚，Claude
+    一開始檢查原始碼、編譯後的 CSS 規則都沒問題，但當下 `curl` 到的 HTML 其實只是資料還沒
+    載入的初始畫面（`isLoading` 狀態），不是實際渲染結果，**這個驗證方法本身有漏洞，不能
+    證明什麼**。回頭問使用者「有沒有強制重新整理」才發現是瀏覽器分頁還停在 HMR 更新前的
+    舊畫面。**教訓**：dev server 開很久、中間改過很多次的情況下，「程式碼邏輯檢查過都對，
+    但畫面看起來還是舊的」，第一個該懷疑的是瀏覽器快取/沒重新整理，不是繼續往程式碼裡找
+    不存在的 bug——這條呼應全域 `~/.claude/CLAUDE.md` 已有的「先比對編譯產物時間戳」教訓，
+    這次是同一類問題在「client component 資料非同步載入」情境下的變形。
+16. **Service 層的「組合層」函式（呼叫 Client 層、參數一路轉手傳下去的那種）如果只測底下的
+    純函式，不會抓到「漏傳某個參數」這種接線 bug**：2026-08-19 新增 `district`/`keyword`
+    篩選時，`searchRestaurantsInputSchema`（型別）、`findRestaurants`（Client 層）都正確
+    加了這兩個欄位，但 `searchRestaurants`（Service 層組合呼叫的地方）忘記把
+    `input.district`/`input.keyword` 轉傳給 `findRestaurants`——型別上不會報錯（因為
+    `findRestaurants` 的參數是 optional，少傳等於沒篩選，語法上合法），单元測試也測不出來
+    （`filterAndSortBySoloSeat`/`paginate` 這兩個純函式測試都還是綠燈，因為它們根本不知道
+    `district`/`keyword` 這兩個欄位存在），一路到使用者實測「篩選完全沒作用」才發現。
+    **教訓**：像 `searchRestaurants` 這種「輸入物件有 5、6 個欄位，組合層再轉呼叫給
+    Client」的函式，新增/修改任何一個欄位時，除了測純函式本身，還要**額外補一個測試直接斷言
+    組合層有沒有把每個欄位都轉呼叫過去**（mock 掉 Client 層那個函式，斷言呼叫參數），不能
+    只信賴型別檢查「有 optional 欄位就不會報錯」這件事——這次修完後有補上
+    `tests/unit/restaurantSearchService.test.ts` 的 `searchRestaurants` 測試，並且刻意
+    revert 一次程式碼實測確認這個測試真的會抓到這個 bug 才算數，不是寫了測試就相信它有效。
 
 ## 下次接續開發時，建議的下一步（依優先序）
 

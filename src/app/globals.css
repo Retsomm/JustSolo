@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
+/* 淺色主題預設值：米色/大地色系，刻意不用死白色。 */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3ebd8;
+  --foreground: #4a3c2c;
 }
 
 @theme inline {
@@ -12,11 +13,18 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* 使用者沒有手動選過主題（沒有 data-theme="light"）時，跟隨系統深色模式偏好。 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+}
+
+/* 使用者手動選過深色主題時，不管系統偏好是什麼都套用深色。 */
+:root[data-theme="dark"] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 body {

@@ -21,12 +21,18 @@ const getPrisma = (): PrismaClient => {
 
 export const findRestaurants = async (params: {
   category?: string;
+  district?: string;
+  keyword?: string;
   city: string;
 }): Promise<RestaurantSearchResult[]> => {
   const restaurants = await getPrisma().restaurant.findMany({
     where: {
       city: params.city,
       ...(params.category ? { category: { name: params.category } } : {}),
+      ...(params.district ? { district: params.district } : {}),
+      ...(params.keyword
+        ? { name: { contains: params.keyword, mode: "insensitive" } }
+        : {}),
     },
     include: { category: true },
   });
@@ -79,6 +85,17 @@ export const listCategories = async (): Promise<CategoryOption[]> =>
     orderBy: { name: "asc" },
   });
 
+export const listDistricts = async (city: string): Promise<string[]> => {
+  const rows = await getPrisma().restaurant.findMany({
+    where: { city, district: { not: null } },
+    select: { district: true },
+    distinct: ["district"],
+    orderBy: { district: "asc" },
+  });
+
+  return rows.map((r) => r.district).filter((d): d is string => d !== null);
+};
+
 export type RestaurantUpsertInput = {
   placeId: string;
   name: string;
@@ -86,6 +103,7 @@ export type RestaurantUpsertInput = {
   lat: number;
   lng: number;
   phone: string | null;
+  district: string | null;
   city: string;
   categoryId: string;
 };
@@ -99,6 +117,7 @@ export const upsertRestaurantByPlaceId = (data: RestaurantUpsertInput) =>
       lat: data.lat,
       lng: data.lng,
       phone: data.phone,
+      district: data.district,
       city: data.city,
       categoryId: data.categoryId,
     },
@@ -109,6 +128,7 @@ export const upsertRestaurantByPlaceId = (data: RestaurantUpsertInput) =>
       lat: data.lat,
       lng: data.lng,
       phone: data.phone,
+      district: data.district,
       city: data.city,
       categoryId: data.categoryId,
     },

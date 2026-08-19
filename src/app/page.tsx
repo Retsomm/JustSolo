@@ -3,20 +3,30 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useCategories } from "@/hooks/useCategories";
+import { useDistricts } from "@/hooks/useDistricts";
 import { useRestaurantSearch } from "@/hooks/useRestaurantSearch";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { soloSeatStatusLabel } from "@/lib/soloSeatLabel";
 import { Pagination } from "@/components/Pagination";
 
 const CITY = "台中市";
+const SEARCH_DEBOUNCE_MS = 300;
 
 export default function Home() {
   const [category, setCategory] = useState<string | undefined>(undefined);
+  const [district, setDistrict] = useState<string | undefined>(undefined);
+  const [keywordInput, setKeywordInput] = useState("");
   const [soloSeatOnly, setSoloSeatOnly] = useState(false);
   const [page, setPage] = useState(1);
 
+  const debouncedKeyword = useDebouncedValue(keywordInput, SEARCH_DEBOUNCE_MS);
+
   const { data: categories } = useCategories();
+  const { data: districts } = useDistricts();
   const { data, isLoading } = useRestaurantSearch({
     category,
+    district,
+    keyword: debouncedKeyword || undefined,
     city: CITY,
     soloSeatOnly,
     page,
@@ -26,6 +36,16 @@ export default function Home() {
 
   const handleCategoryChange = (value: string) => {
     setCategory(value || undefined);
+    setPage(1);
+  };
+
+  const handleDistrictChange = (value: string) => {
+    setDistrict(value || undefined);
+    setPage(1);
+  };
+
+  const handleKeywordChange = (value: string) => {
+    setKeywordInput(value);
     setPage(1);
   };
 
@@ -40,6 +60,15 @@ export default function Home() {
         幫你找到{CITY}真的有單人座位的餐廳
       </p>
 
+      <input
+        type="text"
+        value={keywordInput}
+        onChange={(event) => handleKeywordChange(event.target.value)}
+        placeholder="搜尋店名"
+        aria-label="搜尋店名"
+        className="rounded border border-foreground/15 bg-background px-3 py-2 text-sm text-foreground"
+      />
+
       <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2 text-sm">
           分類
@@ -52,6 +81,22 @@ export default function Home() {
             {categories?.map((c) => (
               <option key={c.id} value={c.name}>
                 {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex items-center gap-2 text-sm">
+          行政區
+          <select
+            value={district ?? ""}
+            onChange={(event) => handleDistrictChange(event.target.value)}
+            className="rounded border border-foreground/15 bg-background px-2 py-1 text-foreground"
+          >
+            <option value="">全部</option>
+            {districts?.map((d) => (
+              <option key={d} value={d}>
+                {d}
               </option>
             ))}
           </select>
