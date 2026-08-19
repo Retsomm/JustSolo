@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SoloSeatStatus {
+  CONFIRMED_YES
+  CONFIRMED_NO
+  UNKNOWN
+}
+
+model Category {
+  id          String       @id @default(cuid())
+  name        String       @unique // 燒肉 / 中式 / 牛排 / 甜點...
+  restaurants Restaurant[]
+}
+
+model Restaurant {
+  id                 String           @id @default(cuid())
+  name               String
+  categoryId         String
+  category           Category         @relation(fields: [categoryId], references: [id])
+  city               String           @default("台中市")
+  district           String?
+  address            String
+  lat                Float?
+  lng                Float?
+  phone              String?
+  placeId            String?          @unique // Google Places API place_id，方便去重/re-sync
+  soloSeatStatus     SoloSeatStatus   @default(UNKNOWN)
+  soloSeatType       String? // 例：吧台單人座 / 一人套餐 / 單人小桌
+  soloSeatConfidence Float            @default(0) // 由 SoloSeatReport 聚合算出，MVP 先固定 0
+  reports            SoloSeatReport[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([categoryId])
+  @@index([city])
+}
+
+// MVP 尚未接 UI/API，先保留 schema 給 Phase 2 眾包回報機制用
+model SoloSeatReport {
+  id           String         @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant     @relation(fields: [restaurantId], references: [id])
+  reportType   SoloSeatStatus
+  note         String?
+  createdAt    DateTime       @default(now())
+
+  @@index([restaurantId])
+}
