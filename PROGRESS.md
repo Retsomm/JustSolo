@@ -19,8 +19,7 @@
 | 資料庫 | PostgreSQL + Prisma（Prisma 7，`prisma-client` generator，需要 driver adapter） |
 | 程式風格 | `const foo = (...) => {...}` 箭頭函式、FP 風格、無 class、避免 mutate |
 | 套件管理 | **yarn**（2026-08-19 補充決定，原本 scaffold 誤用 npm，已改用 yarn，`yarn.lock` 為準） |
-| 測試 | Vitest（單元/整合）+ React Testing Library + MSW。**不用 Playwright/瀏覽器 e2e**——
-2026-08-19 使用者明確表示 UI/功能驗證是使用者自己的責任範圍，不需要 Claude 另外架一套瀏覽器自動化重複做同一件事（詳見下方「已知的坑」與「給接手對話的 AI 模型的提醒」） |
+| 測試 | Vitest（單元/整合）+ React Testing Library + MSW。**不用 Playwright/瀏覽器 e2e**——2026-08-19 使用者明確表示 UI/功能驗證是使用者自己的責任範圍，不需要 Claude 另外架一套瀏覽器自動化重複做同一件事（詳見下方「已知的坑」與「給接手對話的 AI 模型的提醒」） |
 | 資料來源 | Google Places API 匯入基本資料 + 人工補完單人座位資訊（尚未申請 API Key） |
 | MVP 範圍 | 不做帳號系統/眾包回報 UI（schema 已保留 `SoloSeatReport` 供 Phase 2） |
 | GitHub | https://github.com/Retsomm/JustSolo.git |

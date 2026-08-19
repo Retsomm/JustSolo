@@ -9,7 +9,7 @@ type RestaurantDetailViewProps = {
 };
 
 export const RestaurantDetailView = ({ id }: RestaurantDetailViewProps) => {
-  const { data, isLoading } = useRestaurantDetail(id);
+  const { data, isLoading, isError } = useRestaurantDetail(id);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-6 pb-6 pt-20">
@@ -19,7 +19,11 @@ export const RestaurantDetailView = ({ id }: RestaurantDetailViewProps) => {
 
       {isLoading && <p className="text-sm text-foreground/70">載入中…</p>}
 
-      {!isLoading && !data && (
+      {isError && (
+        <p className="text-sm text-foreground/70">載入失敗，請稍後再試。</p>
+      )}
+
+      {!isLoading && !isError && !data && (
         <p className="text-sm text-foreground/70">找不到這間餐廳。</p>
       )}
 
