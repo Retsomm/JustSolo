@@ -37,3 +37,7 @@ export type PaginatedRestaurants = {
   totalCount: number;
   totalPages: number;
 };
+
+export type RestaurantDetail = RestaurantSearchResult & {
+  phone: string | null;
+};

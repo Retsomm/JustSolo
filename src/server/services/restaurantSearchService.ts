@@ -1,6 +1,7 @@
-import { findRestaurants } from "@/server/clients/prismaClient";
+import { findRestaurantById, findRestaurants } from "@/server/clients/prismaClient";
 import type {
   PaginatedRestaurants,
+  RestaurantDetail,
   RestaurantSearchResult,
   SearchRestaurantsInput,
   SoloSeatStatus,
@@ -62,3 +63,7 @@ export const searchRestaurants = async (
   const filtered = filterAndSortBySoloSeat(restaurants, input.soloSeatOnly);
   return paginate(filtered, input.page, RESTAURANT_PAGE_SIZE);
 };
+
+// 純粹轉呼叫 Client 層，沒有額外業務邏輯，故不另立單元測試。
+export const getRestaurantById = (id: string): Promise<RestaurantDetail | null> =>
+  findRestaurantById(id);

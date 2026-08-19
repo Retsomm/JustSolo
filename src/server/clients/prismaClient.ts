@@ -1,6 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
-import type { RestaurantSearchResult } from "@/types/restaurant";
+import type { RestaurantDetail, RestaurantSearchResult } from "@/types/restaurant";
 import type { CategoryOption } from "@/types/category";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
@@ -43,6 +43,29 @@ export const findRestaurants = async (params: {
   }));
 };
 
+export const findRestaurantById = async (
+  id: string,
+): Promise<RestaurantDetail | null> => {
+  const restaurant = await getPrisma().restaurant.findUnique({
+    where: { id },
+    include: { category: true },
+  });
+
+  if (!restaurant) return null;
+
+  return {
+    id: restaurant.id,
+    name: restaurant.name,
+    categoryName: restaurant.category.name,
+    city: restaurant.city,
+    district: restaurant.district,
+    address: restaurant.address,
+    soloSeatStatus: restaurant.soloSeatStatus,
+    soloSeatType: restaurant.soloSeatType,
+    phone: restaurant.phone,
+  };
+};
+
 export const findOrCreateCategory = (name: string) =>
   getPrisma().category.upsert({
     where: { name },
@@ -62,6 +85,7 @@ export type RestaurantUpsertInput = {
   address: string;
   lat: number;
   lng: number;
+  phone: string | null;
   city: string;
   categoryId: string;
 };
@@ -74,6 +98,7 @@ export const upsertRestaurantByPlaceId = (data: RestaurantUpsertInput) =>
       address: data.address,
       lat: data.lat,
       lng: data.lng,
+      phone: data.phone,
       city: data.city,
       categoryId: data.categoryId,
     },
@@ -83,6 +108,7 @@ export const upsertRestaurantByPlaceId = (data: RestaurantUpsertInput) =>
       address: data.address,
       lat: data.lat,
       lng: data.lng,
+      phone: data.phone,
       city: data.city,
       categoryId: data.categoryId,
     },

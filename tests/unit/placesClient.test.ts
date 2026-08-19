@@ -22,6 +22,7 @@ describe("parsePlacesResponse", () => {
           location: { latitude: 24.15, longitude: 120.67 },
           primaryType: "barbecue_restaurant",
           primaryTypeDisplayName: { text: "燒烤餐廳" },
+          nationalPhoneNumber: "04-1234 5678",
         },
       ],
       nextPageToken: "token-abc",
@@ -36,10 +37,26 @@ describe("parsePlacesResponse", () => {
           lat: 24.15,
           lng: 120.67,
           categoryName: "燒烤餐廳",
+          phone: "04-1234 5678",
         },
       ],
       nextPageToken: "token-abc",
     });
+  });
+
+  it("沒有電話號碼時 phone 是 null", () => {
+    const response = {
+      places: [
+        {
+          id: "place-no-phone",
+          displayName: { text: "沒有電話的店" },
+          formattedAddress: "台中市某路 9 號",
+          location: { latitude: 24.1, longitude: 120.6 },
+        },
+      ],
+    };
+
+    expect(parsePlacesResponse(response).results[0].phone).toBeNull();
   });
 
   it("沒有 primaryTypeDisplayName 時退回 primaryType，兩者都沒有時退回「其他」", () => {
