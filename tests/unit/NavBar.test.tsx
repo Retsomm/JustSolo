@@ -97,33 +97,28 @@ describe("NavBar hydration 穩定性", () => {
     container.innerHTML = serverHtml;
     document.body.appendChild(container);
 
-    // React 19 偵測到 hydration mismatch、且沒辦法用 patch 方式修復時
-    // （例如整個子節點結構不同，這裡是太陽圖示換成月亮圖示），會非同步拋出例外、
-    // 整棵樹在 client 端重新渲染——這個例外會晚於 act() 同步呼叫本身才浮現，
-    // 一般的 `expect(() => act(...)).not.toThrow()` 抓不到，必須在 process
-    // 層級監聽 uncaughtException/unhandledRejection 才能可靠偵測到。
-    const uncaughtErrors: unknown[] = [];
-    const handleUncaught = (error: unknown) => uncaughtErrors.push(error);
-    process.on("uncaughtException", handleUncaught);
-    process.on("unhandledRejection", handleUncaught);
-
-    try {
-      act(() => {
-        hydrateRoot(container, <NavBar />);
+    // React 19 用 hydrateRoot 的 onRecoverableError 選項回報 hydration mismatch
+    // （即使有辦法 patch 修復也會回報），這是官方提供、可靠取得回報的方式，
+    // 不需要靠 process 層級的 uncaughtException/unhandledRejection 去撈非同步拋出的例外。
+    const recoverableErrors: unknown[] = [];
+    let root!: ReturnType<typeof hydrateRoot>;
+    act(() => {
+      root = hydrateRoot(container, <NavBar />, {
+        onRecoverableError: (error) => {
+          recoverableErrors.push(error);
+        },
       });
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    } finally {
-      process.off("uncaughtException", handleUncaught);
-      process.off("unhandledRejection", handleUncaught);
-    }
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(uncaughtErrors).toHaveLength(0);
+    expect(recoverableErrors).toHaveLength(0);
 
     // hydrate 完成後的 effect 會依照系統偏好（深色）更新畫面。
     expect(
       container.querySelector('[aria-label="切換成淺色主題"]'),
     ).not.toBeNull();
 
+    root.unmount();
     document.body.removeChild(container);
   });
 });
