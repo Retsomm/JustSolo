@@ -4,35 +4,45 @@ import { useState } from "react";
 import { useCategories } from "@/hooks/useCategories";
 import { useRestaurantSearch } from "@/hooks/useRestaurantSearch";
 import { soloSeatStatusLabel } from "@/lib/soloSeatLabel";
+import { Pagination } from "@/components/Pagination";
 
 const CITY = "台中市";
 
 export default function Home() {
   const [category, setCategory] = useState<string | undefined>(undefined);
   const [soloSeatOnly, setSoloSeatOnly] = useState(false);
+  const [page, setPage] = useState(1);
 
   const { data: categories } = useCategories();
-  const { data: restaurants, isLoading } = useRestaurantSearch({
+  const { data, isLoading } = useRestaurantSearch({
     category,
     city: CITY,
     soloSeatOnly,
+    page,
   });
 
+  const restaurants = data?.items ?? [];
+
+  const handleCategoryChange = (value: string) => {
+    setCategory(value || undefined);
+    setPage(1);
+  };
+
+  const handleSoloSeatOnlyChange = (checked: boolean) => {
+    setSoloSeatOnly(checked);
+    setPage(1);
+  };
+
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6">
-      <header>
-        <h1 className="text-2xl font-bold">JustSolo</h1>
-        <p className="text-sm text-zinc-500">
-          幫你找到{CITY}真的有單人座位的餐廳
-        </p>
-      </header>
+    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 pb-6 pt-20">
+      <p className="text-sm text-zinc-500">幫你找到{CITY}真的有單人座位的餐廳</p>
 
       <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2 text-sm">
           分類
           <select
             value={category ?? ""}
-            onChange={(event) => setCategory(event.target.value || undefined)}
+            onChange={(event) => handleCategoryChange(event.target.value)}
             className="rounded border border-zinc-300 px-2 py-1"
           >
             <option value="">全部</option>
@@ -48,7 +58,7 @@ export default function Home() {
           <input
             type="checkbox"
             checked={soloSeatOnly}
-            onChange={(event) => setSoloSeatOnly(event.target.checked)}
+            onChange={(event) => handleSoloSeatOnlyChange(event.target.checked)}
           />
           僅顯示有單人座位
         </label>
@@ -57,7 +67,7 @@ export default function Home() {
       {isLoading && <p className="text-sm text-zinc-500">搜尋中…</p>}
 
       <ul className="flex flex-col gap-3">
-        {restaurants?.map((r) => (
+        {restaurants.map((r) => (
           <li key={r.id} className="rounded border border-zinc-200 p-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="font-semibold">{r.name}</h2>
@@ -74,10 +84,18 @@ export default function Home() {
         ))}
       </ul>
 
-      {!isLoading && restaurants?.length === 0 && (
+      {!isLoading && restaurants.length === 0 && (
         <p className="text-sm text-zinc-500">
           目前沒有符合條件的餐廳，換個篩選條件試試？
         </p>
+      )}
+
+      {data && (
+        <Pagination
+          page={data.page}
+          totalPages={data.totalPages}
+          onPageChange={setPage}
+        />
       )}
     </main>
   );

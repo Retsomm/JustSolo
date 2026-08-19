@@ -42,10 +42,14 @@
 | GitHub remote + 首次 push | ✅ 完成 | `origin` = Retsomm/JustSolo，`main` 已 push |
 | `dev` branch 建立 + push | ✅ 完成 | `origin/dev` 已建立，之後開發都在這個 branch 上 |
 | `placesClient.ts` 真正實作（Google Places API Text Search） | ✅ 完成，已實測 | 純函式 `buildTextSearchQuery`/`parsePlacesResponse` 有單元測試；2026-08-19 使用者提供 `GOOGLE_PLACE_NEW_API_KEY` 後已實際打過 Google 的伺服器，成功 |
-| `scripts/import-restaurants.ts` 匯入腳本 | ✅ 完成，已實測 | `yarn import:restaurants` 已實際跑過：燒肉/中式/牛排/甜點各匯入 20 筆，共 80 筆台中市真實店家 |
-| Google Places API 台中市種子資料真正匯入 DB | ✅ 完成 | 已用 `psql` 驗證：4 分類各 20 筆，`soloSeatStatus` 皆為 `UNKNOWN`（符合預期，等人工標註） |
-| `category.list` tRPC procedure | ✅ 完成 | `src/server/routers/category.ts`，給首頁分類下拉選單用 |
-| 首頁 UI（分類篩選＋單人座位開關＋餐廳卡片列表） | ✅ 完成程式碼，⏸ **未在瀏覽器實際看過** | `src/app/page.tsx`；component test（`tests/unit/HomePage.test.tsx`，mock 掉 Hook 層）4 個測試全過；**沒有跑過 `yarn dev` 用瀏覽器肉眼確認過畫面**，按照 2026-08-19 的推送流程，這一步留給使用者本機驗證 |
+| ~~分類匯入改用固定 4 分類清單~~ → **分類改成 Google Places 動態回傳** | ✅ 完成，已實測 | 2026-08-19 使用者回饋「不應該局限在提供的四種，應該包含 Google Map 中會出現的所有分類」。改成廣泛查詢 `${city}餐廳` + 分頁（`searchRestaurantsInCity`），分類直接採用回應的 `primaryTypeDisplayName`（查無則退回 `primaryType`／「其他」），不再是我們自己預先猜的清單 |
+| `scripts/import-restaurants.ts` 匯入腳本 | ✅ 完成，已實測 | `yarn import:restaurants` 已實際跑過新版：一次廣泛查詢 3 頁分頁，匯入 60 筆，涵蓋 **31 種不同的真實 Google 分類**（日式/台式/義大利/印度/拉麵/居酒屋/餐酒館…等），不再局限於燒肉/中式/牛排/甜點 |
+| 台中市地理範圍過濾（`TAICHUNG_BOUNDS`/`isWithinTaichung`/`filterPlacesInTaichung`） | ✅ 完成 | 2026-08-19 使用者把 CodeRabbit 對 `dev` branch 上一版 push 的 review 建議貼給另一個 VS Code 內的 Claude session 套用（跟這個 CLI session **同時**編輯同一份工作目錄，兩邊都改到同幾支檔案）。雙重防線：Places API 請求層帶 `locationRestriction.rectangle`，DB 寫入前再用 `filterPlacesInTaichung` 過濾一次，避免「地址寫台中市但座標其實在別縣市」的髒資料。單元測試已補齊，整合後 20 個測試全過 |
+| Google Places API 台中市種子資料真正匯入 DB | ⚠️ **需要清理** | 目前 DB 共 134 筆：**舊的 74 筆**（第一版匯入，燒肉/中式/牛排/甜點 4 個粗分類）+ **新的 60 筆**（新版匯入，31 個 Google 動態分類），placeId 不重疊、沒有互相覆蓋。舊資料的分類跟新邏輯不一致，建議使用者決定要不要清空 `Restaurant`/`Category` 表重新匯入一次求一致（本機開發資料庫，Claude 沒有主動清）|
+| `category.list` tRPC procedure | ✅ 完成 | `src/server/routers/category.ts`，給首頁分類下拉選單用；**現在會回傳 31 個分類選項，不是原本的 4 個** |
+| 首頁 UI（分類篩選＋單人座位開關＋餐廳卡片列表） | ✅ 完成程式碼，⏸ **未在瀏覽器實際看過** | `src/app/page.tsx`；component test（`tests/unit/HomePage.test.tsx`）全過；**沒有跑過 `yarn dev` 用瀏覽器肉眼確認過畫面**，按照 2026-08-19 的推送流程，這一步留給使用者本機驗證 |
+| 固定導覽列（NavBar） | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | `src/components/NavBar.tsx`，`fixed top-0` 固定在頁面最上方，`src/app/layout.tsx` 引入；`page.tsx` 的 `<main>` 加了 `pt-20` 避免內容被蓋住 |
+| 分頁（每頁 10 筆＋分頁按鈕） | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | 2026-08-19 使用者要求：每頁顯示 10 筆，下方分頁按鈕樣式「← 1 2 .. 目前頁 .. 倒數第二頁 最後一頁 →」。後端：`searchRestaurantsInputSchema` 加 `page` 欄位，Service 層新增純函式 `paginate`（切頁＋算 totalPages，5 個單元測試）；前端：`src/lib/pagination.ts` 的純函式 `buildPaginationItems` 算按鈕要顯示哪些頁碼（6 個單元測試涵蓋頭尾重疊/刪節號情境），`src/components/Pagination.tsx` 是純呈現元件，只有 1 頁時不顯示；切換分類/單人座位篩選會重置回第 1 頁（`HomePage.test.tsx` 新增 3 個分頁互動測試） |
 | 使用者帳號/眾包回報 UI | 🔲 未開始（Phase 2） | schema 已預留，MVP 刻意不做 |
 | 地圖檢視 | 🔲 未開始（Phase 2） | |
 
@@ -86,14 +90,21 @@
 
 ## 下次接續開發時，建議的下一步（依優先序）
 
-1. ~~申請 Google Places API Key、匯入台中市種子資料~~ ✅ 2026-08-19 完成，DB 已有 80 筆真實店家
-2. ~~做首頁 UI~~ ✅ 2026-08-19 程式碼完成，**使用者接手：`yarn dev` 打開 http://localhost:3000
-   實際看一次畫面**，這是目前唯一「有前端可以驗證」的東西
-3. 手動標註前 10-20 間熟悉的店的 `soloSeatStatus`/`soloSeatType`，作為第一批可信資料
-   （目前 80 筆全是 `UNKNOWN`，篩選「僅顯示有單人座位」現在測起來會是空結果，這是預期的，
+1. ~~申請 Google Places API Key、匯入台中市種子資料~~ ✅ 2026-08-19 完成
+2. ~~做首頁 UI（分類篩選＋單人座位開關＋餐廳卡片）~~ ✅ 2026-08-19 程式碼完成
+3. ~~分類改成 Google Places 動態回傳，不侷限固定 4 種~~ ✅ 2026-08-19 完成
+4. ~~固定導覽列 + 分頁（每頁 10 筆＋分頁按鈕）~~ ✅ 2026-08-19 程式碼完成
+5. **使用者接手：`git pull` 後 `yarn dev` 打開 http://localhost:3000 實際看一次畫面**——
+   這一輪疊了不少前端改動（NavBar、分頁 UI）都還沒有人用瀏覽器肉眼確認過，這是目前最優先
+   要做的事
+6. DB 資料清理：目前 134 筆混著舊版（燒肉/中式/牛排/甜點 4 粗分類）跟新版（31 個 Google
+   動態分類）的匯入結果，建議清空 `Restaurant`/`Category` 表後只用新版 `yarn import:restaurants`
+   重新匯入一次，分類才會全部一致
+7. 手動標註前 10-20 間熟悉的店的 `soloSeatStatus`/`soloSeatType`，作為第一批可信資料
+   （目前資料全是 `UNKNOWN`，篩選「僅顯示有單人座位」現在測起來會是空結果，這是預期的，
    不是 bug——可以先用 Prisma Studio `yarn db:studio` 手動改幾筆來測 UI）
-4. 補 acceptance test（Playwright e2e，對應主情境：燒肉＋單人座位篩選）
-5. `yarn playwright install` 後才能真的跑 e2e
+8. 補 acceptance test（Playwright e2e，對應主情境：燒肉＋單人座位篩選）
+9. `yarn playwright install` 後才能真的跑 e2e
 
 ## 給接手對話的 AI 模型的提醒
 
@@ -110,3 +121,10 @@
      在本機測試過才繼續。但 TDD 的紅燈/綠燈循環（寫測試、跑 `yarn test`）跟 `tsc --noEmit`
      typecheck 照做，這是寫程式本身的一部分，不算「額外驗證」。
   3. 對話裡仍然不要宣稱功能「已確認可用」，只能說「寫完了、單元測試過，等你本機測」。
+- **使用者會同時開兩個 Claude Code session 改同一份工作目錄**（這個 CLI session ＋ VS Code
+  extension 裡的另一個 session），通常是把 CodeRabbit 對 `dev` push 的 review 建議貼給 VS Code
+  那邊套用。2026-08-19 實際發生過：`placesClient.ts`／`restaurantImportService.ts` 在這個
+  session 編輯過程中被另一個 session 即時改掉（新增了 `TAICHUNG_BOUNDS`/`isWithinTaichung`
+  地理範圍過濾）。**遇到「檔案在我讀取/寫入之間被改了」的系統提示時，不要當成錯誤或衝突去
+  revert，先讀完整檔案內容確認現況，跑一次 `yarn test`/`tsc --noEmit` 確認整合後還是綠燈，
+  再繼續動作**；如果改動看起來不合理才需要跟使用者確認，不要預設是自己的問題。

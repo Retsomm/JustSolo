@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { filterAndSortBySoloSeat } from "@/server/services/restaurantSearchService";
+import {
+  filterAndSortBySoloSeat,
+  paginate,
+} from "@/server/services/restaurantSearchService";
 import type { RestaurantSearchResult } from "@/types/restaurant";
 
 const makeRestaurant = (
@@ -51,5 +54,51 @@ describe("filterAndSortBySoloSeat", () => {
     filterAndSortBySoloSeat(restaurants, false);
 
     expect(restaurants).toEqual(original);
+  });
+});
+
+describe("paginate", () => {
+  const items = Array.from({ length: 25 }, (_, i) => i + 1);
+
+  it("回傳指定頁的資料與分頁中繼資料", () => {
+    expect(paginate(items, 1, 10)).toEqual({
+      items: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      page: 1,
+      pageSize: 10,
+      totalCount: 25,
+      totalPages: 3,
+    });
+  });
+
+  it("回傳最後一頁時筆數可以少於 pageSize", () => {
+    const result = paginate(items, 3, 10);
+
+    expect(result.items).toEqual([21, 22, 23, 24, 25]);
+    expect(result.totalPages).toBe(3);
+  });
+
+  it("page 超過 totalPages 時夾回最後一頁", () => {
+    const result = paginate(items, 99, 10);
+
+    expect(result.page).toBe(3);
+    expect(result.items).toEqual([21, 22, 23, 24, 25]);
+  });
+
+  it("page 小於 1 時夾回第 1 頁", () => {
+    const result = paginate(items, 0, 10);
+
+    expect(result.page).toBe(1);
+  });
+
+  it("沒有資料時 totalPages 至少是 1", () => {
+    const result = paginate([], 1, 10);
+
+    expect(result).toEqual({
+      items: [],
+      page: 1,
+      pageSize: 10,
+      totalCount: 0,
+      totalPages: 1,
+    });
   });
 });

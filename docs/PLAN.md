@@ -68,8 +68,14 @@ API 層用 tRPC：`src/server/routers/*` 定義 procedure，前端透過
 
 ## 資料來源策略
 
-Google Places API 匯入台中市各分類餐廳的基本資料（名稱/地址/座標），單人座位資訊
+Google Places API 匯入台中市餐廳的基本資料（名稱/地址/座標），單人座位資訊
 （`soloSeatStatus`/`soloSeatType`）MVP 階段人工補完熟悉的店家，Phase 2 再開放眾包回報。
+
+**分類不是我們自己預先決定的固定清單**（2026-08-19 修正）：一開始曾用「燒肉/中式/牛排/甜點」
+四個分類分別搜尋，但這樣搜尋範圍會被侷限在自選的分類裡，跟「涵蓋所有餐飲分類」的產品定位
+矛盾。改成用廣泛查詢字串（`${city}餐廳`）+ 分頁抓多頁結果，每筆餐廳的分類直接採用 Google
+Places API 回應的 `primaryTypeDisplayName`（實測可拿到 31 種以上的真實分類，如日式餐廳、
+義大利餐廳、拉麵店、居酒屋、餐酒館…），Category 表因此是動態長出來的，不是預先寫死。
 
 ## 決策記錄
 
@@ -81,4 +87,5 @@ Google Places API 匯入台中市各分類餐廳的基本資料（名稱/地址/
 | 資料來源 | Google Places API + 人工補完 | 2026-08-19 |
 | GitHub | Retsomm/JustSolo（私有/公開視 repo 設定） | 2026-08-19 |
 | 套件管理 | yarn（非 npm） | 2026-08-19 |
+| 餐廳分類來源 | Google Places 動態回傳（非預先固定清單） | 2026-08-19 |
 | Git 分支策略 | 開發統一 push 到 `dev`（觸發 CodeRabbit review），不推 `main` | 2026-08-19 |
