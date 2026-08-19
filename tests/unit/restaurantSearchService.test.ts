@@ -1,9 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { findRestaurants } from "@/server/clients/prismaClient";
 import {
   filterAndSortBySoloSeat,
   paginate,
+  searchRestaurants,
 } from "@/server/services/restaurantSearchService";
 import type { RestaurantSearchResult } from "@/types/restaurant";
+
+vi.mock("@/server/clients/prismaClient", () => ({
+  findRestaurants: vi.fn(),
+}));
+
+const mockedFindRestaurants = vi.mocked(findRestaurants);
 
 const makeRestaurant = (
   overrides: Partial<RestaurantSearchResult>,
@@ -99,6 +107,35 @@ describe("paginate", () => {
       pageSize: 10,
       totalCount: 0,
       totalPages: 1,
+    });
+  });
+});
+
+describe("searchRestaurants", () => {
+  beforeEach(() => {
+    mockedFindRestaurants.mockReset();
+    mockedFindRestaurants.mockResolvedValue([]);
+  });
+
+  // 這個測試是為了補之前漏掉的坑：曾經在 input 加了 district/keyword 卻忘記
+  // 從 searchRestaurants 傳給 findRestaurants，UI 篩選送出去了但後端悄悄丟掉，
+  // 使用者實測「篩選完全沒作用」才發現。用這個測試把「Service 有沒有把 input
+  // 的每個欄位都轉呼叫給 Client」這件事釘死，不要只測純函式、漏了組合層的接線。
+  it("把 category/district/keyword/city 完整轉呼叫給 findRestaurants", async () => {
+    await searchRestaurants({
+      category: "燒肉",
+      district: "西區",
+      keyword: "貳食",
+      city: "台中市",
+      soloSeatOnly: false,
+      page: 1,
+    });
+
+    expect(mockedFindRestaurants).toHaveBeenCalledWith({
+      category: "燒肉",
+      district: "西區",
+      keyword: "貳食",
+      city: "台中市",
     });
   });
 });

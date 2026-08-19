@@ -19,13 +19,16 @@ describe("toRestaurantUpsertInput", () => {
       phone: "04-1234 5678",
     };
 
-    expect(toRestaurantUpsertInput(place, "category-1", "台中市")).toEqual({
+    expect(
+      toRestaurantUpsertInput(place, "category-1", "台中市", "西區"),
+    ).toEqual({
       placeId: "place-1",
       name: "測試燒肉店",
       address: "台中市西區某路 1 號",
       lat: 24.15,
       lng: 120.67,
       phone: "04-1234 5678",
+      district: "西區",
       city: "台中市",
       categoryId: "category-1",
     });
