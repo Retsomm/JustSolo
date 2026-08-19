@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   toRestaurantUpsertInput,
   filterPlacesInTaichung,
+  buildDistrictAreas,
+  TAICHUNG_DISTRICTS,
 } from "@/server/services/restaurantImportService";
 import type { PlaceSearchResult } from "@/server/clients/placesClient";
 
@@ -14,6 +16,7 @@ describe("toRestaurantUpsertInput", () => {
       lat: 24.15,
       lng: 120.67,
       categoryName: "燒烤餐廳",
+      phone: "04-1234 5678",
     };
 
     expect(toRestaurantUpsertInput(place, "category-1", "台中市")).toEqual({
@@ -22,6 +25,7 @@ describe("toRestaurantUpsertInput", () => {
       address: "台中市西區某路 1 號",
       lat: 24.15,
       lng: 120.67,
+      phone: "04-1234 5678",
       city: "台中市",
       categoryId: "category-1",
     });
@@ -37,6 +41,7 @@ describe("filterPlacesInTaichung", () => {
       lat: 24.15,
       lng: 120.67,
       categoryName: "燒烤餐廳",
+      phone: null,
     };
     const inTaipei: PlaceSearchResult = {
       placeId: "place-2",
@@ -45,8 +50,20 @@ describe("filterPlacesInTaichung", () => {
       lat: 25.03,
       lng: 121.56,
       categoryName: "其他",
+      phone: null,
     };
 
     expect(filterPlacesInTaichung([inTaichung, inTaipei])).toEqual([inTaichung]);
+  });
+});
+
+describe("buildDistrictAreas", () => {
+  it("把城市名稱跟每個行政區組成搜尋字串", () => {
+    const areas = buildDistrictAreas("台中市");
+
+    expect(areas).toHaveLength(TAICHUNG_DISTRICTS.length);
+    expect(areas[0]).toBe("台中市中區");
+    expect(areas).toContain("台中市西屯區");
+    expect(areas).toContain("台中市大安區");
   });
 });

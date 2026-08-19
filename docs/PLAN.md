@@ -57,11 +57,12 @@ API 層用 tRPC：`src/server/routers/*` 定義 procedure，前端透過
 
 ## TDD 工作流程
 
-1. 使用者情境先寫 acceptance test（Given/When/Then，Playwright e2e）
-2. Service 層寫單元測試（Vitest，因為是純函式，最好測）
-3. Hook 層用 React Testing Library + Vitest + MSW mock API
-4. Repository/Client 層用測試 DB 跑整合測試
-5. 紅燈 → 最小實作變綠燈 → refactor
+1. Service 層寫單元測試（Vitest，因為是純函式，最好測）
+2. Hook 層/元件用 React Testing Library + Vitest + MSW/mock hook 驗證渲染與互動邏輯
+3. Repository/Client 層用測試 DB 跑整合測試
+4. 紅燈 → 最小實作變綠燈 → refactor
+5. **UI/瀏覽器層級的驗證交給使用者本機手動測試，不使用 Playwright 或其他瀏覽器自動化 e2e**
+   （2026-08-19 使用者明確決定：這個範圍完全由使用者自己負責，Claude 不需要另外建置）
 
 第一輪已完成的範例：`tests/unit/restaurantSearchService.test.ts` 測試
 `filterAndSortBySoloSeat`（純函式，`soloSeatOnly` 篩選 + 排序邏輯）。

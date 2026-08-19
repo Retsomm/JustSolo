@@ -4,7 +4,7 @@ import { z } from "zod";
 // https://developers.google.com/maps/documentation/places/web-service/text-search
 const PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
 const PLACES_FIELD_MASK =
-  "places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,nextPageToken";
+  "places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.nationalPhoneNumber,nextPageToken";
 
 // 分類不是我們自己預先決定的固定清單，而是每筆結果直接採用 Google Places
 // 回傳的 primaryTypeDisplayName（找不到時退回 primaryType 或「其他」），
@@ -16,6 +16,7 @@ export type PlaceSearchResult = {
   lat: number;
   lng: number;
   categoryName: string;
+  phone: string | null;
 };
 
 export type PlaceSearchPage = {
@@ -50,6 +51,7 @@ const placesResponseSchema = z.object({
         location: z.object({ latitude: z.number(), longitude: z.number() }),
         primaryType: z.string().optional(),
         primaryTypeDisplayName: z.object({ text: z.string() }).optional(),
+        nationalPhoneNumber: z.string().optional(),
       }),
     )
     .optional(),
@@ -57,7 +59,10 @@ const placesResponseSchema = z.object({
 });
 
 // 純函式：組出廣泛的搜尋字串（不綁定特定分類），方便單元測試，不用真的打 API。
-export const buildTextSearchQuery = (city: string): string => `${city}餐廳`;
+// area 可以是城市本身（"台中市"），也可以是城市+行政區（"台中市西區"）以取得更廣的覆蓋範圍——
+// Google Places Text Search 對單一查詢字串約有 60 筆結果的硬上限，就算調高分頁也一樣，
+// 逐區查詢才能突破這個限制、更接近城市內實際的餐廳數量。
+export const buildTextSearchQuery = (area: string): string => `${area}餐廳`;
 
 // 純函式：把 Google Places API 回應轉成內部型別，方便單元測試 mock 回應內容。
 export const parsePlacesResponse = (json: unknown): PlaceSearchPage => {
@@ -70,6 +75,7 @@ export const parsePlacesResponse = (json: unknown): PlaceSearchPage => {
     lat: place.location.latitude,
     lng: place.location.longitude,
     categoryName: place.primaryTypeDisplayName?.text ?? place.primaryType ?? "其他",
+    phone: place.nationalPhoneNumber ?? null,
   }));
 
   return { results, nextPageToken: parsed.nextPageToken };
@@ -114,8 +120,8 @@ const fetchPlacesPage = async (
 // 組合層：呼叫 Google Places API，用廣泛查詢字串（不是預先決定的分類清單）
 // 搭配分頁抓多頁結果，讓匯入的餐廳分類直接反映 Google Map 上實際存在的類型。
 // 需要 GOOGLE_PLACE_NEW_API_KEY。
-export const searchRestaurantsInCity = async (
-  city: string,
+export const searchRestaurantsInArea = async (
+  area: string,
   maxPages = 3,
 ): Promise<PlaceSearchResult[]> => {
   const apiKey = process.env.GOOGLE_PLACE_NEW_API_KEY;
@@ -123,7 +129,7 @@ export const searchRestaurantsInCity = async (
     throw new Error("缺少 GOOGLE_PLACE_NEW_API_KEY，請先在 .env 設定");
   }
 
-  const query = buildTextSearchQuery(city);
+  const query = buildTextSearchQuery(area);
   const allResults: PlaceSearchResult[] = [];
   let pageToken: string | undefined;
 

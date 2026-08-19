@@ -20,7 +20,7 @@ export const Pagination = ({ page, totalPages, onPageChange }: PaginationProps) 
         aria-label="上一頁"
         disabled={page <= 1}
         onClick={() => onPageChange(page - 1)}
-        className="cursor-pointer rounded border border-zinc-300 px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+        className="cursor-pointer rounded border border-foreground/15 px-2 py-1 text-sm text-foreground/70 hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
       >
         ←
       </button>
@@ -29,7 +29,7 @@ export const Pagination = ({ page, totalPages, onPageChange }: PaginationProps) 
         item === "ellipsis" ? (
           <span
             key={`ellipsis-${index}`}
-            className="px-1 text-sm text-zinc-400"
+            className="px-1 text-sm text-foreground/40"
           >
             ..
           </span>
@@ -41,8 +41,8 @@ export const Pagination = ({ page, totalPages, onPageChange }: PaginationProps) 
             onClick={() => onPageChange(item)}
             className={`min-w-8 cursor-pointer rounded border px-2 py-1 text-sm ${
               item === page
-                ? "border-zinc-900 bg-zinc-900 text-white"
-                : "border-zinc-300 text-zinc-700 hover:bg-zinc-100"
+                ? "border-foreground bg-foreground text-background"
+                : "border-foreground/15 text-foreground/70 hover:bg-foreground/5"
             }`}
           >
             {item}
@@ -55,7 +55,7 @@ export const Pagination = ({ page, totalPages, onPageChange }: PaginationProps) 
         aria-label="下一頁"
         disabled={page >= totalPages}
         onClick={() => onPageChange(page + 1)}
-        className="cursor-pointer rounded border border-zinc-300 px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+        className="cursor-pointer rounded border border-foreground/15 px-2 py-1 text-sm text-foreground/70 hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
       >
         →
       </button>

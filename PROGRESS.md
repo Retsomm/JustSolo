@@ -19,13 +19,13 @@
 | 資料庫 | PostgreSQL + Prisma（Prisma 7，`prisma-client` generator，需要 driver adapter） |
 | 程式風格 | `const foo = (...) => {...}` 箭頭函式、FP 風格、無 class、避免 mutate |
 | 套件管理 | **yarn**（2026-08-19 補充決定，原本 scaffold 誤用 npm，已改用 yarn，`yarn.lock` 為準） |
-| 測試 | Vitest（單元/整合）+ React Testing Library + Playwright（e2e）+ MSW |
+| 測試 | Vitest（單元/整合）+ React Testing Library + MSW。**不用 Playwright/瀏覽器 e2e**——2026-08-19 使用者明確表示 UI/功能驗證是使用者自己的責任範圍，不需要 Claude 另外架一套瀏覽器自動化重複做同一件事（詳見下方「已知的坑」與「給接手對話的 AI 模型的提醒」） |
 | 資料來源 | Google Places API 匯入基本資料 + 人工補完單人座位資訊（尚未申請 API Key） |
 | MVP 範圍 | 不做帳號系統/眾包回報 UI（schema 已保留 `SoloSeatReport` 供 Phase 2） |
 | GitHub | https://github.com/Retsomm/JustSolo.git |
 | 本機路徑 | `~/Projects/JustSolo` |
 | Git 分支策略 | **2026-08-19 起：所有變更 push 到 `dev` branch（不推 `main`），觸發 CodeRabbit code review** |
-| 推送前驗證方式 | **2026-08-19 起：Claude 不用自己跑 dev server/curl/完整 build 驗證，使用者會自己本機測試**；TDD 單元測試（`yarn test`）跟 typecheck 照跑，這是寫程式過程的一部分，不是額外驗證 |
+| 推送前驗證方式 | **2026-08-19 修正版：改完程式碼、單元測試/typecheck 過了就停在工作目錄，等使用者本機測試 UI/功能確認 OK，才可以 commit+push。不是「Claude 先 push，使用者事後測」**（詳見文件最後「給接手對話的 AI 模型的提醒」，這條當天被使用者當面糾正過一次） |
 
 ## 進度對照表
 
@@ -37,19 +37,22 @@
 | tRPC 串接（router/route handler/client provider） | ✅ 完成 | 已用 curl 驗證 GET 查詢能打通 Service→Client→DB，回傳空陣列（尚無資料） |
 | Client/Service/Hook 分層骨架 | ✅ 完成 | `src/server/clients`、`src/server/services`、`src/hooks` |
 | 第一個 TDD 測試（`filterAndSortBySoloSeat`） | ✅ 完成 | `tests/unit/restaurantSearchService.test.ts`，3 個測試全過 |
-| Vitest / Playwright 設定 | ✅ 完成 | Vitest 已驗證可跑；**Playwright 瀏覽器尚未 `yarn playwright install`**，e2e 還不能真的跑 |
-| 套件管理改用 yarn | ✅ 完成 | 已刪 `package-lock.json`／`node_modules`，改 `yarn install` 產生 `yarn.lock`；`playwright.config.ts` 的 `webServer.command` 已改 `yarn dev` |
+| Vitest 設定 | ✅ 完成 | 單元/整合測試用 Vitest，已驗證可跑 |
+| ~~Playwright e2e~~（已移除） | ❌ **不採用** | 2026-08-19 曾經完整裝過 Chromium + 寫了 3 個 e2e 測試（`tests/e2e/`），全部通過，但使用者當面糾正：「UI 我會自己測試，你為何還要安裝」——UI/瀏覽器層級的驗證（不論自動化與否）都是使用者自己的範圍，Claude 不需要另外建立這套工具鏈。已整批移除：`tests/e2e/`、`playwright.config.ts`、`@playwright/test` 依賴、`package.json` 的 `e2e` script。**不要在這個專案重新加回 Playwright/瀏覽器 e2e，除非使用者明確改口要求** |
+| 套件管理改用 yarn | ✅ 完成 | 已刪 `package-lock.json`／`node_modules`，改 `yarn install` 產生 `yarn.lock` |
 | GitHub remote + 首次 push | ✅ 完成 | `origin` = Retsomm/JustSolo，`main` 已 push |
 | `dev` branch 建立 + push | ✅ 完成 | `origin/dev` 已建立，之後開發都在這個 branch 上 |
 | `placesClient.ts` 真正實作（Google Places API Text Search） | ✅ 完成，已實測 | 純函式 `buildTextSearchQuery`/`parsePlacesResponse` 有單元測試；2026-08-19 使用者提供 `GOOGLE_PLACE_NEW_API_KEY` 後已實際打過 Google 的伺服器，成功 |
 | ~~分類匯入改用固定 4 分類清單~~ → **分類改成 Google Places 動態回傳** | ✅ 完成，已實測 | 2026-08-19 使用者回饋「不應該局限在提供的四種，應該包含 Google Map 中會出現的所有分類」。改成廣泛查詢 `${city}餐廳` + 分頁（`searchRestaurantsInCity`），分類直接採用回應的 `primaryTypeDisplayName`（查無則退回 `primaryType`／「其他」），不再是我們自己預先猜的清單 |
 | `scripts/import-restaurants.ts` 匯入腳本 | ✅ 完成，已實測 | `yarn import:restaurants` 已實際跑過新版：一次廣泛查詢 3 頁分頁，匯入 60 筆，涵蓋 **31 種不同的真實 Google 分類**（日式/台式/義大利/印度/拉麵/居酒屋/餐酒館…等），不再局限於燒肉/中式/牛排/甜點 |
 | 台中市地理範圍過濾（`TAICHUNG_BOUNDS`/`isWithinTaichung`/`filterPlacesInTaichung`） | ✅ 完成 | 2026-08-19 使用者把 CodeRabbit 對 `dev` branch 上一版 push 的 review 建議貼給另一個 VS Code 內的 Claude session 套用（跟這個 CLI session **同時**編輯同一份工作目錄，兩邊都改到同幾支檔案）。雙重防線：Places API 請求層帶 `locationRestriction.rectangle`，DB 寫入前再用 `filterPlacesInTaichung` 過濾一次，避免「地址寫台中市但座標其實在別縣市」的髒資料。單元測試已補齊，整合後 20 個測試全過 |
-| Google Places API 台中市種子資料真正匯入 DB | ⚠️ **需要清理** | 目前 DB 共 134 筆：**舊的 74 筆**（第一版匯入，燒肉/中式/牛排/甜點 4 個粗分類）+ **新的 60 筆**（新版匯入，31 個 Google 動態分類），placeId 不重疊、沒有互相覆蓋。舊資料的分類跟新邏輯不一致，建議使用者決定要不要清空 `Restaurant`/`Category` 表重新匯入一次求一致（本機開發資料庫，Claude 沒有主動清）|
+| Google Places API 台中市種子資料真正匯入 DB | ✅ 完成，改成分區查詢 | 2026-08-19 使用者發現只有 60-64 筆太少，質疑「是不是又設了篩選條件」。實測證實：**不是篩選問題，是 Google Places Text Search 對單一查詢字串（「台中市餐廳」）約有 60 筆結果的硬上限**（把分頁上限從 3 調到 6 重測，結果還是卡在 60），這是 Google API 本身的限制，不是我方 bug。改成對台中市 29 個行政區各自查詢一次（`TAICHUNG_DISTRICTS`／`buildDistrictAreas`，`searchRestaurantsInCity`→`searchRestaurantsInArea` 改名支援任意查詢字串），跑一次約 2.5 分鐘，**DB 現在有 1716 筆、81 種不同分類**，涵蓋面大幅提升 |
 | `category.list` tRPC procedure | ✅ 完成 | `src/server/routers/category.ts`，給首頁分類下拉選單用；**現在會回傳 31 個分類選項，不是原本的 4 個** |
 | 首頁 UI（分類篩選＋單人座位開關＋餐廳卡片列表） | ✅ 完成程式碼，⏸ **未在瀏覽器實際看過** | `src/app/page.tsx`；component test（`tests/unit/HomePage.test.tsx`）全過；**沒有跑過 `yarn dev` 用瀏覽器肉眼確認過畫面**，按照 2026-08-19 的推送流程，這一步留給使用者本機驗證 |
 | 固定導覽列（NavBar） | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | `src/components/NavBar.tsx`，`fixed top-0` 固定在頁面最上方，`src/app/layout.tsx` 引入；`page.tsx` 的 `<main>` 加了 `pt-20` 避免內容被蓋住 |
 | 分頁（每頁 10 筆＋分頁按鈕） | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | 2026-08-19 使用者要求：每頁顯示 10 筆，下方分頁按鈕樣式「← 1 2 .. 目前頁 .. 倒數第二頁 最後一頁 →」。後端：`searchRestaurantsInputSchema` 加 `page` 欄位，Service 層新增純函式 `paginate`（切頁＋算 totalPages，5 個單元測試）；前端：`src/lib/pagination.ts` 的純函式 `buildPaginationItems` 算按鈕要顯示哪些頁碼（6 個單元測試涵蓋頭尾重疊/刪節號情境），`src/components/Pagination.tsx` 是純呈現元件，只有 1 頁時不顯示；切換分類/單人座位篩選會重置回第 1 頁（`HomePage.test.tsx` 新增 3 個分頁互動測試） |
+| 餐廳詳情頁 | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | MVP Must-have 清單裡最後一個沒做的功能。`placesClient.ts` field mask 加 `nationalPhoneNumber`（`PlaceSearchResult`/`RestaurantUpsertInput` 都補上 `phone` 欄位並貫穿 Client→Service→Import script）；新增 `RestaurantDetail` 型別、`prismaClient.findRestaurantById`、`restaurant.getById` tRPC procedure、`useRestaurantDetail` hook；`/restaurant/[id]` route（`page.tsx` 是 server component 拆 `params`，`RestaurantDetailView.tsx` 是實際渲染的 client component）；首頁卡片改用 `<Link>` 包住可以點進去。已重新跑過 `yarn import:restaurants` 回填電話（64 筆裡 59 筆有電話）。單元測試新增 4 個（`RestaurantDetailView.test.tsx`），共 39 個全過 |
+| 全站色彩改用 `bg-background`/`text-foreground` 統一 token | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | 2026-08-19 使用者截圖回報「預設商店卡片看不清楚，hover 顏色太亮」。根因：`page.tsx`／`Pagination.tsx`／`RestaurantDetailView.tsx` 當初用固定 `zinc-*` 色階寫的，跟已經改用會翻轉的 `bg-background`/`text-foreground`（見上方「已知的坑」第 10 條）的 `NavBar.tsx` 混用——使用者系統是深色模式，`<main>` 背景跟著變黑，但卡片文字還是寫死的深色，hover 又是寫死的近白色。已把**全部**元件統一改用 `bg-background`/`text-foreground`（次要文字用透明度修飾符分層次，例如 `text-foreground/60`；hover 用 `hover:bg-foreground/5`；選中狀態用 `bg-foreground text-background` 顏色互換），用 `yarn build` 實測確認有正確編譯出 `color-mix()` CSS，`grep -rn "zinc-\|bg-white\|text-white\|bg-black\|text-black" src/` 確認全專案已無殘留固定色階。**首頁確認過 OK**；同一輪截圖也發現詳情頁內容太淡看不清楚——`RestaurantDetailView.tsx` 原本地址/電話/單人座位狀態用 `text-foreground/60`~`/70`，透明度疊在近黑背景上讀起來太暗，已把這三個核心資訊（使用者查詳情頁最在意的內容）改成不加透明度修飾符的 `text-foreground`（跟標題同亮度），只有真正次要的返回連結/分類標籤保留較淡的 `/60`~`/70`。**尚未經使用者確認這次夠亮** |
 | 使用者帳號/眾包回報 UI | 🔲 未開始（Phase 2） | schema 已預留，MVP 刻意不做 |
 | 地圖檢視 | 🔲 未開始（Phase 2） | |
 
@@ -101,30 +104,68 @@
     兩者成對出現、不能只寫一半：
     - 想要背景/文字都跟著系統深色模式一起翻轉：兩個都用 `bg-background`/`text-foreground`
       這組 CSS 變數（`NavBar.tsx` 的做法）。
-    - 想要固定樣式、不受系統深色模式影響（`Pagination.tsx` 目前的做法，因為頁面其餘內容也是
-      用固定的 zinc-* 色階、不隨系統深色模式變化）：背景跟文字都用固定色階，例如
-      `hover:bg-zinc-100` 要配 `text-zinc-700`，不能讓文字繼續繼承會翻轉的預設值。
+    - 想要固定樣式、不受系統深色模式影響：背景跟文字都用固定色階，兩者成對出現。
+    **2026-08-19 第三次踩到（餐廳卡片預設看不清楚 + hover 太亮）**：這次不是漏配對，是整個
+    App 混用了兩套邏輯——`NavBar.tsx` 用會翻轉的 `bg-background`/`text-foreground`，但
+    `page.tsx`／`Pagination.tsx`／`RestaurantDetailView.tsx` 用固定的 `zinc-*` 色階（預設寫
+    的是淺色主題的深色文字：`text-zinc-900`/`700`/`600`）。使用者系統是深色模式，`NavBar`
+    正確跟著變黑底白字，但頁面其餘內容的 `<main>` 背景繼承 `body` 也變黑，餐廳卡片卻還是
+    寫死的深色文字（`text-zinc-900` 等）疊在黑色背景上——變成「深字疊深底」看不清楚；
+    hover 用 `bg-zinc-50`（幾乎純白、不透明）疊上去反而「太亮」、跟深色頁面格格不入。
+    **最終修法（已在全站套用，不再混用兩套邏輯）**：**全部**元件統一改用
+    `bg-background`/`text-foreground` 這組會翻轉的 CSS 變數，次要文字用透明度修飾符調整
+    層次（`text-foreground/60`＝60% 不透明度，數字越小越淡），hover 用
+    `hover:bg-foreground/5`（只疊 5% 不透明度的前景色，深色模式下是極淡的亮灰、淺色模式下是
+    極淡的暗灰，不會是死板的純白或純黑），選中狀態（例如目前頁碼）用
+    `bg-foreground text-background`（顏色互換，兩個主題下都會是最高對比的「反色」效果）。
+    Tailwind v4 對 `@theme inline` 定義出來的顏色 token 原生支援透明度修飾符（`/60`、`/5`
+    這種寫法），編譯出來是 `color-mix(in oklab, var(--foreground) 60%, transparent)`，
+    已用 `yarn build` 實測確認有正確產生對應的 CSS class，不是憑感覺猜語法。
     新增/修改任何有明確背景色（含 hover/active 等互動狀態）的元件之前，先
-    `grep -rn "bg-white\|bg-zinc\|bg-black\|bg-background" src/` 檢查該元素跟它所有互動狀態
-    是否都有配對的明確文字顏色，不要只檢查預設狀態就以為沒事。
+    `grep -rn "zinc-\|bg-white\|text-white\|bg-black\|text-black" src/` 確認**整個專案**
+    沒有殘留固定色階跟 `bg-background`/`text-foreground` 混用，不要只檢查單一元件。
+11. **Playwright e2e 已經整套裝好、3 個測試也全過，但被使用者要求整批移除**（見上方進度
+    對照表「~~Playwright e2e~~（已移除）」那一列）。曾經踩過的技術坑（Playwright Test 預設
+    CommonJS transform 不能 import Prisma 7 產生的 ESM-only Client，需要改用 `pg` 直接下 SQL）
+    已經隨程式碼一起刪除，不再贅述——**這條的重點不是技術細節，是流程教訓**：
+    Claude 主動安裝新工具鏈（尤其是會下載大型二進位檔的，例如瀏覽器）之前，
+    先確認這個工具解決的問題是不是使用者已經明確說過「我會自己處理」的範圍，
+    不要因為它出現在最初的技術棧規劃裡就自動當成「該做的事」去做。
+12. **新增動態路由（例如 `app/restaurant/[id]/page.tsx`）後，`PageProps<'/restaurant/[id]'>`
+    這種型別 helper 一開始會報 `Type '"/restaurant/[id]"' does not satisfy the constraint
+    '"/"'.`**：因為這些型別是 `next dev`/`next build`/`next typegen` 掃描 `app/` 目錄實際
+    路由後才產生的，剛新增的檔案還沒被掃描過。**修法**：跑一次 `npx next typegen`
+    （不用整個 build，比較快）重新產生型別，`tsc --noEmit` 就會過。
+13. **Google Places Text Search 不是穩定/確定性的查詢**：同一個查詢字串（`台中市餐廳`）
+    重複呼叫，回傳的結果集合可能不完全一樣（這次從 60 筆變成 64 筆，多了 4 間之前沒出現的
+    店）。這是 Google 排名演算法本身的性質，**不是 bug**，`upsertRestaurantByPlaceId` 用
+    `placeId` upsert 是安全的（不會重複、不會刪掉舊資料只會疊加），但代表「重新匯入」不會
+    每次都得到完全一致的資料筆數，這是預期中的正常現象。
+14. **Google Places Text Search（New）對單一查詢字串約有 60 筆結果的硬上限，跟分頁上限設多高
+    無關**：實測把 `maxPages` 從 3 調到 6 重跑，結果還是卡在 60 筆——`nextPageToken` 在第 3 頁
+    後就不再出現了，不是我方程式碼漏抓，是 Google 這個 API 端點本身的限制（延續自舊版
+    Places API 已知的 60 筆上限）。**修法**：不要指望靠加大分頁數解決覆蓋率問題，改成對
+    多個更小範圍的查詢字串各自查一次（這裡是台中市 29 個行政區），靠 `placeId` 去重合併
+    （見 `importCityRestaurants` 用 `Set<string>` 追蹤已處理過的 `placeId`）。這個限制對任何
+    用 Google Places Text Search 做「列出某地區所有 X」的匯入情境都適用，不限這個專案。
 
 ## 下次接續開發時，建議的下一步（依優先序）
 
 1. ~~申請 Google Places API Key、匯入台中市種子資料~~ ✅ 2026-08-19 完成
 2. ~~做首頁 UI（分類篩選＋單人座位開關＋餐廳卡片）~~ ✅ 2026-08-19 程式碼完成
 3. ~~分類改成 Google Places 動態回傳，不侷限固定 4 種~~ ✅ 2026-08-19 完成
-4. ~~固定導覽列 + 分頁（每頁 10 筆＋分頁按鈕）~~ ✅ 2026-08-19 程式碼完成
-5. **使用者接手：`git pull` 後 `yarn dev` 打開 http://localhost:3000 實際看一次畫面**——
-   這一輪疊了不少前端改動（NavBar、分頁 UI）都還沒有人用瀏覽器肉眼確認過，這是目前最優先
-   要做的事
-6. DB 資料清理：目前 134 筆混著舊版（燒肉/中式/牛排/甜點 4 粗分類）跟新版（31 個 Google
-   動態分類）的匯入結果，建議清空 `Restaurant`/`Category` 表後只用新版 `yarn import:restaurants`
-   重新匯入一次，分類才會全部一致
-7. 手動標註前 10-20 間熟悉的店的 `soloSeatStatus`/`soloSeatType`，作為第一批可信資料
+4. ~~固定導覽列 + 分頁（每頁 10 筆＋分頁按鈕）~~ ✅ 2026-08-19 完成，使用者已本機測試確認 OK
+5. ~~使用者本機用瀏覽器實際看一次畫面~~ ✅ 2026-08-19 完成（過程中抓到 NavBar/Pagination
+   深色模式白底白字的 bug，已修好並經使用者確認）
+6. ~~`yarn playwright install` + 補 acceptance e2e test~~ 2026-08-19 完成過（3 個測試全過），
+   但**隨即被使用者要求整批移除**——UI/瀏覽器驗證是使用者自己的範圍，不需要 Claude 建這套
+   工具鏈。**不要重新加回 Playwright**，除非使用者明確改口要求
+7. ~~DB 資料清理~~ ✅ 2026-08-19 經使用者確認後清空重新匯入
+8. ~~餐廳詳情頁~~ ✅ 2026-08-19 完成，見下方進度對照表，**尚未在瀏覽器實際看過**
+9. 手動標註前 10-20 間熟悉的店的 `soloSeatStatus`/`soloSeatType`，作為第一批可信資料
    （目前資料全是 `UNKNOWN`，篩選「僅顯示有單人座位」現在測起來會是空結果，這是預期的，
    不是 bug——可以先用 Prisma Studio `yarn db:studio` 手動改幾筆來測 UI）
-8. 補 acceptance test（Playwright e2e，對應主情境：燒肉＋單人座位篩選）
-9. `yarn playwright install` 後才能真的跑 e2e
+10. Phase 2：眾包回報 UI（`SoloSeatReport` schema 已有）、地圖檢視、帳號系統
 
 ## 給接手對話的 AI 模型的提醒
 
@@ -153,3 +194,14 @@
   地理範圍過濾）。**遇到「檔案在我讀取/寫入之間被改了」的系統提示時，不要當成錯誤或衝突去
   revert，先讀完整檔案內容確認現況，跑一次 `yarn test`/`tsc --noEmit` 確認整合後還是綠燈，
   再繼續動作**；如果改動看起來不合理才需要跟使用者確認，不要預設是自己的問題。
+- **UI／瀏覽器層級的驗證，不論自動化與否，都是使用者自己的範圍，不是 Claude 該建立的東西**：
+  2026-08-19 Claude 主動裝了 Playwright + Chromium、寫了 3 個 e2e 測試（自認為「這是自動化的
+  TDD 測試，不算使用者說的『我自己測 UI』」），結果被當面糾正：「我一開始就說過 UI 我會自己
+  測試了你為何還要安裝？」——整套被要求移除。**教訓**：判斷一件事要不要做，不能只看「這件事
+  本身是不是自動化、算不算 TDD 方法論的一部分」，要看「使用者是否已經明確認領這個範圍」；
+  使用者說過「UI 我會自己測」之後，跑瀏覽器（不管是人工點還是 Playwright 自動點）都算在使用者
+  的範圍內，Claude 不用另外重複建置一套工具鏈去做同一件事，即使這件事出現在最初討論過的
+  技術棧規劃裡也一樣——**規劃階段講過的技術棧不等於「現在就該主動做」的授權**，尤其是會
+  安裝大型二進位檔（瀏覽器）這種有實質成本的操作，不確定時應該先問。這個專案目前**沒有
+  e2e/瀏覽器自動化測試**，只靠 Vitest 單元/整合測試 + 使用者本機手動驗證，不要重新加回
+  Playwright 或類似工具，除非使用者明確改口要求。
