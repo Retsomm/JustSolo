@@ -80,3 +80,5 @@ Google Places API 匯入台中市各分類餐廳的基本資料（名稱/地址/
 | MVP 帳號/眾包 | 不做（schema 保留） | 2026-08-19 |
 | 資料來源 | Google Places API + 人工補完 | 2026-08-19 |
 | GitHub | Retsomm/JustSolo（私有/公開視 repo 設定） | 2026-08-19 |
+| 套件管理 | yarn（非 npm） | 2026-08-19 |
+| Git 分支策略 | 開發統一 push 到 `dev`（觸發 CodeRabbit review），不推 `main` | 2026-08-19 |

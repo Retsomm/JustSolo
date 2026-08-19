@@ -41,3 +41,42 @@ export const findRestaurants = async (params: {
     soloSeatType: r.soloSeatType,
   }));
 };
+
+export const findOrCreateCategory = (name: string) =>
+  getPrisma().category.upsert({
+    where: { name },
+    update: {},
+    create: { name },
+  });
+
+export type RestaurantUpsertInput = {
+  placeId: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  city: string;
+  categoryId: string;
+};
+
+export const upsertRestaurantByPlaceId = (data: RestaurantUpsertInput) =>
+  getPrisma().restaurant.upsert({
+    where: { placeId: data.placeId },
+    update: {
+      name: data.name,
+      address: data.address,
+      lat: data.lat,
+      lng: data.lng,
+      city: data.city,
+      categoryId: data.categoryId,
+    },
+    create: {
+      placeId: data.placeId,
+      name: data.name,
+      address: data.address,
+      lat: data.lat,
+      lng: data.lng,
+      city: data.city,
+      categoryId: data.categoryId,
+    },
+  });

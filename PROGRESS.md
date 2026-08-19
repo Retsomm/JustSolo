@@ -24,6 +24,8 @@
 | MVP 範圍 | 不做帳號系統/眾包回報 UI（schema 已保留 `SoloSeatReport` 供 Phase 2） |
 | GitHub | https://github.com/Retsomm/JustSolo.git |
 | 本機路徑 | `~/Projects/JustSolo` |
+| Git 分支策略 | **2026-08-19 起：所有變更 push 到 `dev` branch（不推 `main`），觸發 CodeRabbit code review** |
+| 推送前驗證方式 | **2026-08-19 起：Claude 不用自己跑 dev server/curl/完整 build 驗證，使用者會自己本機測試**；TDD 單元測試（`yarn test`）跟 typecheck 照跑，這是寫程式過程的一部分，不是額外驗證 |
 
 ## 進度對照表
 
@@ -38,8 +40,11 @@
 | Vitest / Playwright 設定 | ✅ 完成 | Vitest 已驗證可跑；**Playwright 瀏覽器尚未 `yarn playwright install`**，e2e 還不能真的跑 |
 | 套件管理改用 yarn | ✅ 完成 | 已刪 `package-lock.json`／`node_modules`，改 `yarn install` 產生 `yarn.lock`；`playwright.config.ts` 的 `webServer.command` 已改 `yarn dev` |
 | GitHub remote + 首次 push | ✅ 完成 | `origin` = Retsomm/JustSolo，`main` 已 push |
+| `dev` branch 建立 + push | ✅ 完成 | `origin/dev` 已建立，之後開發都在這個 branch 上 |
+| `placesClient.ts` 真正實作（Google Places API Text Search） | ✅ 完成（程式碼），⏸ 未實測 | 純函式 `buildTextSearchQuery`/`parsePlacesResponse` 有單元測試；實際打 API 需要 `GOOGLE_PLACES_API_KEY`，**使用者尚未申請，還沒真的呼叫過 Google 的伺服器** |
+| `scripts/import-restaurants.ts` 匯入腳本 | ✅ 完成（程式碼），⏸ 未執行 | `yarn import:restaurants`；同樣卡在沒有 API Key，還沒真的跑過匯入 |
+| Google Places API 台中市種子資料真正匯入 DB | 🔲 未開始 | 需要使用者先申請 `GOOGLE_PLACES_API_KEY` 並填進 `.env` |
 | 首頁 UI（實際串 `useRestaurantSearch`） | 🔲 未開始 | 目前 `/` 還是 create-next-app 預設頁面，**不是功能開發，只是環境建置** |
-| Google Places API 匯入台中市種子資料 | 🔲 未開始 | 需要先申請 API Key；`scripts/import-restaurants.ts` 待寫，`placesClient.ts` 是 stub |
 | 使用者帳號/眾包回報 UI | 🔲 未開始（Phase 2） | schema 已預留，MVP 刻意不做 |
 | 地圖檢視 | 🔲 未開始（Phase 2） | |
 
@@ -69,9 +74,9 @@
 
 ## 下次接續開發時，建議的下一步（依優先序）
 
-1. 申請 Google Places API Key，把 `.env` 加上 `GOOGLE_PLACES_API_KEY`（不要 commit）
-2. 實作 `placesClient.ts` 的 `searchPlacesByCategory`，寫 `scripts/import-restaurants.ts`
-   匯入台中市燒肉/中式/牛排/甜點店基本資料（`soloSeatStatus` 先全部 `UNKNOWN`）
+1. **使用者**申請 Google Places API Key，把 `.env` 加上 `GOOGLE_PLACES_API_KEY`（不要 commit）
+2. 使用者本機跑 `yarn import:restaurants`，確認能真的匯入台中市燒肉/中式/牛排/甜點店基本資料
+   （`soloSeatStatus` 先全部 `UNKNOWN`）——**這一步程式碼已寫好，只是還沒被實際執行驗證過**
 3. 手動標註前 10-20 間熟悉的店的 `soloSeatStatus`/`soloSeatType`，作為第一批可信資料
 4. 做首頁 UI：分類篩選＋「僅顯示有單人座位」開關＋店卡列表，串 `useRestaurantSearch`
 5. 補 acceptance test（Playwright e2e，對應主情境：燒肉＋單人座位篩選）
@@ -86,3 +91,9 @@
   （scaffold/設定檔/schema/測試骨架）全部都能在本環境驗證（build/test/typecheck/curl 都跑過），
   所以可以直接 commit+push；但之後一旦動到**需要使用者用瀏覽器實際操作確認的 UI 功能**，
   改完要停在工作目錄，等使用者說「測試 OK」才能 commit。
+- **2026-08-19 起的推送流程（覆蓋上一條的「commit+push」部分，驗證方式改變）**：
+  1. push 目標是 `origin dev`，不是 `main`——push 到 `dev` 會觸發 CodeRabbit 對變更做 code review。
+  2. **Claude 不用自己啟動 dev server / curl API / 跑完整 `yarn build` 來驗證**，使用者會自己
+     在本機測試過才繼續。但 TDD 的紅燈/綠燈循環（寫測試、跑 `yarn test`）跟 `tsc --noEmit`
+     typecheck 照做，這是寫程式本身的一部分，不算「額外驗證」。
+  3. 對話裡仍然不要宣稱功能「已確認可用」，只能說「寫完了、單元測試過，等你本機測」。
