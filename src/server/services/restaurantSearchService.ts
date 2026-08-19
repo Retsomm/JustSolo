@@ -23,10 +23,11 @@ export const filterAndSortBySoloSeat = (
     ? restaurants.filter((r) => r.soloSeatStatus === "CONFIRMED_YES")
     : restaurants;
 
-  return [...filtered].sort(
-    (a, b) =>
-      soloSeatSortOrder[a.soloSeatStatus] - soloSeatSortOrder[b.soloSeatStatus],
-  );
+  return [...filtered].sort((a, b) => {
+    const statusDiff =
+      soloSeatSortOrder[a.soloSeatStatus] - soloSeatSortOrder[b.soloSeatStatus];
+    return statusDiff !== 0 ? statusDiff : a.id.localeCompare(b.id);
+  });
 };
 
 // 純函式：把已排序好的清單切成單一頁，並算出分頁需要的中繼資料，方便單元測試。
