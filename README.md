@@ -15,24 +15,24 @@ Next.js (App Router) + TypeScript + Tailwind CSS + tRPC + PostgreSQL + Prisma。
 ## 本機開發環境設定
 
 ```bash
-npm install                 # 會自動跑 postinstall: prisma generate
-createdb justsolo_db        # 建立本機 PostgreSQL 資料庫（需先安裝並啟動 PostgreSQL）
-cp .env.example .env        # 依本機帳號調整 DATABASE_URL
-npx prisma migrate dev      # 套用 schema
-npm run dev                 # http://localhost:3000
+yarn install                 # 會自動跑 postinstall: prisma generate
+createdb justsolo_db         # 建立本機 PostgreSQL 資料庫（需先安裝並啟動 PostgreSQL）
+cp .env.example .env         # 依本機帳號調整 DATABASE_URL
+yarn prisma migrate dev      # 套用 schema
+yarn dev                     # http://localhost:3000
 ```
 
 ## 常用指令
 
 | 指令 | 用途 |
 |---|---|
-| `npm run dev` | 啟動開發伺服器 |
-| `npm run build` | Production build |
-| `npm run test` | 跑 Vitest 單元/整合測試 |
-| `npm run test:watch` | Vitest watch 模式 |
-| `npm run e2e` | 跑 Playwright e2e（首次需 `npx playwright install`） |
-| `npm run db:migrate` | 建立/套用 Prisma migration |
-| `npm run db:studio` | 開 Prisma Studio 看資料庫 |
+| `yarn dev` | 啟動開發伺服器 |
+| `yarn build` | Production build |
+| `yarn test` | 跑 Vitest 單元/整合測試 |
+| `yarn test:watch` | Vitest watch 模式 |
+| `yarn e2e` | 跑 Playwright e2e（首次需 `yarn playwright install`） |
+| `yarn db:migrate` | 建立/套用 Prisma migration |
+| `yarn db:studio` | 開 Prisma Studio 看資料庫 |
 
 ## 目錄結構
 
