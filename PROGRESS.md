@@ -41,9 +41,9 @@
 | 套件管理改用 yarn | ✅ 完成 | 已刪 `package-lock.json`／`node_modules`，改 `yarn install` 產生 `yarn.lock`；`playwright.config.ts` 的 `webServer.command` 已改 `yarn dev` |
 | GitHub remote + 首次 push | ✅ 完成 | `origin` = Retsomm/JustSolo，`main` 已 push |
 | `dev` branch 建立 + push | ✅ 完成 | `origin/dev` 已建立，之後開發都在這個 branch 上 |
-| `placesClient.ts` 真正實作（Google Places API Text Search） | ✅ 完成（程式碼），⏸ 未實測 | 純函式 `buildTextSearchQuery`/`parsePlacesResponse` 有單元測試；實際打 API 需要 `GOOGLE_PLACES_API_KEY`，**使用者尚未申請，還沒真的呼叫過 Google 的伺服器** |
-| `scripts/import-restaurants.ts` 匯入腳本 | ✅ 完成（程式碼），⏸ 未執行 | `yarn import:restaurants`；同樣卡在沒有 API Key，還沒真的跑過匯入 |
-| Google Places API 台中市種子資料真正匯入 DB | 🔲 未開始 | 需要使用者先申請 `GOOGLE_PLACES_API_KEY` 並填進 `.env` |
+| `placesClient.ts` 真正實作（Google Places API Text Search） | ✅ 完成，已實測 | 純函式 `buildTextSearchQuery`/`parsePlacesResponse` 有單元測試；2026-08-19 使用者提供 `GOOGLE_PLACE_NEW_API_KEY` 後已實際打過 Google 的伺服器，成功 |
+| `scripts/import-restaurants.ts` 匯入腳本 | ✅ 完成，已實測 | `yarn import:restaurants` 已實際跑過：燒肉/中式/牛排/甜點各匯入 20 筆，共 80 筆台中市真實店家 |
+| Google Places API 台中市種子資料真正匯入 DB | ✅ 完成 | 已用 `psql` 驗證：4 分類各 20 筆，`soloSeatStatus` 皆為 `UNKNOWN`（符合預期，等人工標註） |
 | 首頁 UI（實際串 `useRestaurantSearch`） | 🔲 未開始 | 目前 `/` 還是 create-next-app 預設頁面，**不是功能開發，只是環境建置** |
 | 使用者帳號/眾包回報 UI | 🔲 未開始（Phase 2） | schema 已預留，MVP 刻意不做 |
 | 地圖檢視 | 🔲 未開始（Phase 2） | |
@@ -71,16 +71,27 @@
    跟 `node_modules`，重新 `yarn install`）。往後看到任何指令範例、CI 設定、文件，一律用
    `yarn xxx`，不要用 `npm run xxx`/`npx xxx`——尤其 `playwright.config.ts` 的
    `webServer.command` 這種容易被忽略的地方也要記得改。
+8. **Google Places API Key 的環境變數名稱是 `GOOGLE_PLACE_NEW_API_KEY`（單數 PLACE + NEW），
+   不是文法上更順的 `GOOGLE_PLACES_API_KEY`**：Claude 一開始寫程式碼時用了後者（複數），
+   使用者實際在 `.env` 設定時用的是前者，2026-08-19 已把 `placesClient.ts`／`.env.example`
+   統一改成使用者實際設定的名稱。以 `.env` 裡使用者真正寫的變數名為準，不要自己「修正」成
+   看起來更標準的名稱。
+9. **`.gitignore` 的 `.env*` 規則會連 `.env.example` 一起排除**：`.env.example` 從一開始建立
+   就沒被 git 追蹤到，`git status` 也不會顯示成「未追蹤」（因為被 ignore 規則吃掉，不是單純沒
+   `git add`），一直到 2026-08-19 才發現它從沒被 push 上 GitHub。已在 `.gitignore` 加一行
+   `!.env.example` 排除規則修正。**教訓**：`.env*` 這種萬用字元規則要小心會不會誤殺明確想要
+   commit 的範例檔案，之後新增任何「範例/模板」性質的 env 檔案，記得檢查 `git status --ignored`
+   確認真的有被追蹤到，不要只憑感覺以為 `.env.example` 這種常見檔名會自動被放行。
 
 ## 下次接續開發時，建議的下一步（依優先序）
 
-1. **使用者**申請 Google Places API Key，把 `.env` 加上 `GOOGLE_PLACES_API_KEY`（不要 commit）
-2. 使用者本機跑 `yarn import:restaurants`，確認能真的匯入台中市燒肉/中式/牛排/甜點店基本資料
-   （`soloSeatStatus` 先全部 `UNKNOWN`）——**這一步程式碼已寫好，只是還沒被實際執行驗證過**
-3. 手動標註前 10-20 間熟悉的店的 `soloSeatStatus`/`soloSeatType`，作為第一批可信資料
-4. 做首頁 UI：分類篩選＋「僅顯示有單人座位」開關＋店卡列表，串 `useRestaurantSearch`
-5. 補 acceptance test（Playwright e2e，對應主情境：燒肉＋單人座位篩選）
-6. `yarn playwright install` 後才能真的跑 e2e
+1. ~~申請 Google Places API Key、匯入台中市種子資料~~ ✅ 2026-08-19 完成，DB 已有 80 筆真實店家
+2. 手動標註前 10-20 間熟悉的店的 `soloSeatStatus`/`soloSeatType`，作為第一批可信資料
+   （目前 80 筆全是 `UNKNOWN`，篩選「僅顯示有單人座位」現在測起來會是空結果，這是預期的，
+   不是 bug）
+3. 做首頁 UI：分類篩選＋「僅顯示有單人座位」開關＋店卡列表，串 `useRestaurantSearch`
+4. 補 acceptance test（Playwright e2e，對應主情境：燒肉＋單人座位篩選）
+5. `yarn playwright install` 後才能真的跑 e2e
 
 ## 給接手對話的 AI 模型的提醒
 

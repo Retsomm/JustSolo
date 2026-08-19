@@ -48,9 +48,9 @@ export const searchPlacesByCategory = async (
   category: string,
   city: string,
 ): Promise<PlaceSearchResult[]> => {
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  const apiKey = process.env.GOOGLE_PLACE_NEW_API_KEY;
   if (!apiKey) {
-    throw new Error("缺少 GOOGLE_PLACES_API_KEY，請先在 .env 設定");
+    throw new Error("缺少 GOOGLE_PLACE_NEW_API_KEY，請先在 .env 設定");
   }
 
   const response = await fetch(PLACES_TEXT_SEARCH_URL, {
