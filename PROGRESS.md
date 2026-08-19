@@ -44,7 +44,8 @@
 | `placesClient.ts` 真正實作（Google Places API Text Search） | ✅ 完成，已實測 | 純函式 `buildTextSearchQuery`/`parsePlacesResponse` 有單元測試；2026-08-19 使用者提供 `GOOGLE_PLACE_NEW_API_KEY` 後已實際打過 Google 的伺服器，成功 |
 | `scripts/import-restaurants.ts` 匯入腳本 | ✅ 完成，已實測 | `yarn import:restaurants` 已實際跑過：燒肉/中式/牛排/甜點各匯入 20 筆，共 80 筆台中市真實店家 |
 | Google Places API 台中市種子資料真正匯入 DB | ✅ 完成 | 已用 `psql` 驗證：4 分類各 20 筆，`soloSeatStatus` 皆為 `UNKNOWN`（符合預期，等人工標註） |
-| 首頁 UI（實際串 `useRestaurantSearch`） | 🔲 未開始 | 目前 `/` 還是 create-next-app 預設頁面，**不是功能開發，只是環境建置** |
+| `category.list` tRPC procedure | ✅ 完成 | `src/server/routers/category.ts`，給首頁分類下拉選單用 |
+| 首頁 UI（分類篩選＋單人座位開關＋餐廳卡片列表） | ✅ 完成程式碼，⏸ **未在瀏覽器實際看過** | `src/app/page.tsx`；component test（`tests/unit/HomePage.test.tsx`，mock 掉 Hook 層）4 個測試全過；**沒有跑過 `yarn dev` 用瀏覽器肉眼確認過畫面**，按照 2026-08-19 的推送流程，這一步留給使用者本機驗證 |
 | 使用者帳號/眾包回報 UI | 🔲 未開始（Phase 2） | schema 已預留，MVP 刻意不做 |
 | 地圖檢視 | 🔲 未開始（Phase 2） | |
 
@@ -86,10 +87,11 @@
 ## 下次接續開發時，建議的下一步（依優先序）
 
 1. ~~申請 Google Places API Key、匯入台中市種子資料~~ ✅ 2026-08-19 完成，DB 已有 80 筆真實店家
-2. 手動標註前 10-20 間熟悉的店的 `soloSeatStatus`/`soloSeatType`，作為第一批可信資料
+2. ~~做首頁 UI~~ ✅ 2026-08-19 程式碼完成，**使用者接手：`yarn dev` 打開 http://localhost:3000
+   實際看一次畫面**，這是目前唯一「有前端可以驗證」的東西
+3. 手動標註前 10-20 間熟悉的店的 `soloSeatStatus`/`soloSeatType`，作為第一批可信資料
    （目前 80 筆全是 `UNKNOWN`，篩選「僅顯示有單人座位」現在測起來會是空結果，這是預期的，
-   不是 bug）
-3. 做首頁 UI：分類篩選＋「僅顯示有單人座位」開關＋店卡列表，串 `useRestaurantSearch`
+   不是 bug——可以先用 Prisma Studio `yarn db:studio` 手動改幾筆來測 UI）
 4. 補 acceptance test（Playwright e2e，對應主情境：燒肉＋單人座位篩選）
 5. `yarn playwright install` 後才能真的跑 e2e
 

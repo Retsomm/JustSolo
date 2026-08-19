@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import type { RestaurantSearchResult } from "@/types/restaurant";
+import type { CategoryOption } from "@/types/category";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -47,6 +48,12 @@ export const findOrCreateCategory = (name: string) =>
     where: { name },
     update: {},
     create: { name },
+  });
+
+export const listCategories = async (): Promise<CategoryOption[]> =>
+  getPrisma().category.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
   });
 
 export type RestaurantUpsertInput = {
