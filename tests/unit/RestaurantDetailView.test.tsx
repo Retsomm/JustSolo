@@ -11,6 +11,11 @@ vi.mock("@/hooks/useRestaurantDetail");
 vi.mock("@/components/SoloSeatReportForm", () => ({
   SoloSeatReportForm: () => null,
 }));
+// 收藏按鈕本身有自己的測試（FavoriteButton.test.tsx），這裡用 stub 避免要另外準備
+// SessionProvider/tRPC Provider。
+vi.mock("@/components/FavoriteButton", () => ({
+  FavoriteButton: () => null,
+}));
 // PlaceDetailsSection 本身有自己的測試（PlaceDetailsSection.test.tsx），這裡只關心
 // 詳情頁有沒有把 restaurantId/activeTab 正確傳下去、切換分頁按鈕有沒有反映到這個 prop。
 vi.mock("@/components/PlaceDetailsSection", () => ({

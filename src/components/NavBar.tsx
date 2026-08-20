@@ -1,10 +1,11 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
-import { signIn, signOut, useSession } from "next-auth/react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 import { resolveTheme, toggleTheme, THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
 import { MoonIcon, SunIcon } from "@/components/icons/ThemeIcons";
-import { UserIcon } from "@/components/icons/AuthIcons";
 
 const getStoredTheme = (): string | null => {
   try {
@@ -14,27 +15,45 @@ const getStoredTheme = (): string | null => {
   }
 };
 
-const AuthButton = () => {
-  const { data: session, status } = useSession();
+// 導覽連結／登入按鈕共用同一套「目前所在頁面」的高亮樣式。
+const navItemClassName = (isActive: boolean) =>
+  isActive
+    ? "rounded bg-foreground px-3 py-1 text-sm text-background"
+    : "rounded border border-foreground/15 px-3 py-1 text-sm text-foreground hover:bg-foreground/5";
+
+const HomeLink = () => {
+  const pathname = usePathname();
+  const isActive = pathname === "/";
+
+  return (
+    <Link
+      href="/"
+      aria-current={isActive ? "page" : undefined}
+      className={navItemClassName(isActive)}
+    >
+      首頁
+    </Link>
+  );
+};
+
+// 登入前顯示「登入」按鈕，登入後同一個位置變成「個人頁面」連結——
+// 兩者是同一顆按鈕依登入狀態切換文字/行為，不是各自獨立的兩顆按鈕。
+const ProfileOrLoginButton = () => {
+  const { status } = useSession();
+  const pathname = usePathname();
 
   if (status === "loading") return null;
 
   if (status === "authenticated") {
-    const label = session.user?.name ?? session.user?.email ?? "";
+    const isActive = pathname === "/profile";
     return (
-      <div className="flex items-center gap-1.5">
-        <UserIcon className="h-4 w-4 shrink-0 text-foreground/60" />
-        <span className="max-w-24 truncate text-sm text-foreground">
-          {label}
-        </span>
-        <button
-          type="button"
-          onClick={() => signOut()}
-          className="cursor-pointer rounded border border-foreground/15 px-2 py-1 text-xs text-foreground hover:bg-foreground/5"
-        >
-          登出
-        </button>
-      </div>
+      <Link
+        href="/profile"
+        aria-current={isActive ? "page" : undefined}
+        className={navItemClassName(isActive)}
+      >
+        個人頁面
+      </Link>
     );
   }
 
@@ -42,7 +61,7 @@ const AuthButton = () => {
     <button
       type="button"
       onClick={() => signIn("google")}
-      className="cursor-pointer rounded border border-foreground/15 px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5"
+      className={`cursor-pointer ${navItemClassName(false)}`}
     >
       登入
     </button>
@@ -104,7 +123,8 @@ export const NavBar = () => {
       <div className="mx-auto flex h-full w-full max-w-2xl items-center justify-between px-6">
         <span className="text-lg font-bold text-foreground">JustSolo</span>
         <div className="flex items-center gap-2">
-          <AuthButton />
+          <HomeLink />
+          <ProfileOrLoginButton />
           <button
             type="button"
             onClick={handleToggle}

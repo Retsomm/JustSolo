@@ -11,6 +11,7 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { soloSeatStatusLabel } from "@/lib/soloSeatLabel";
 import { Pagination } from "@/components/Pagination";
 import { FriendlinessBadge } from "@/components/FriendlinessBadge";
+import { FavoriteButton } from "@/components/FavoriteButton";
 
 // Leaflet 存取 window，SSR 階段會噴錯，動態載入並關掉 ssr。
 const RestaurantMap = dynamic(
@@ -171,25 +172,30 @@ export default function Home() {
                 className="rounded border border-foreground/10 hover:bg-foreground/5"
                 key={r.id}
               >
-                <Link href={`/restaurant/${r.id}`} className="block p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="font-semibold text-foreground">{r.name}</h2>
-                    <span className="shrink-0 text-xs text-foreground/50">
-                      {r.categoryName}
-                    </span>
-                  </div>
-                  <p className="text-sm text-foreground/60">{r.address}</p>
-                  <p className="mt-1 text-sm text-foreground/70">
-                    {soloSeatStatusLabel(r.soloSeatStatus)}
-                    {r.soloSeatType ? `・${r.soloSeatType}` : ""}
-                  </p>
-                  <div className="mt-2">
+                <div className="p-4">
+                  <Link href={`/restaurant/${r.id}`} className="block">
+                    <div className="flex items-center justify-between gap-2">
+                      <h2 className="font-semibold text-foreground">
+                        {r.name}
+                      </h2>
+                      <span className="shrink-0 text-xs text-foreground/50">
+                        {r.categoryName}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground/60">{r.address}</p>
+                    <p className="mt-1 text-sm text-foreground/70">
+                      {soloSeatStatusLabel(r.soloSeatStatus)}
+                      {r.soloSeatType ? `・${r.soloSeatType}` : ""}
+                    </p>
+                  </Link>
+                  <div className="mt-2 flex items-center justify-between gap-2">
                     <FriendlinessBadge
                       score={r.soloFriendlinessScore}
                       label={r.soloFriendlinessLabel}
                     />
+                    <FavoriteButton restaurantId={r.id} />
                   </div>
-                </Link>
+                </div>
               </li>
             ))}
           </ul>
