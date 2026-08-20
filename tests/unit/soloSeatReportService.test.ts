@@ -1,25 +1,17 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import {
-  listSoloSeatReportTypes,
-  updateRestaurantSoloSeatStatus,
-  upsertSoloSeatReport,
-} from "@/server/clients/prismaClient";
+import { submitSoloSeatReportTransaction } from "@/server/clients/prismaClient";
 import {
   computeSoloSeatStatus,
   submitSoloSeatReport,
 } from "@/server/services/soloSeatReportService";
 
 vi.mock("@/server/clients/prismaClient", () => ({
-  listSoloSeatReportTypes: vi.fn(),
-  updateRestaurantSoloSeatStatus: vi.fn(),
-  upsertSoloSeatReport: vi.fn(),
+  submitSoloSeatReportTransaction: vi.fn(),
 }));
 
-const mockedListSoloSeatReportTypes = vi.mocked(listSoloSeatReportTypes);
-const mockedUpdateRestaurantSoloSeatStatus = vi.mocked(
-  updateRestaurantSoloSeatStatus,
+const mockedSubmitSoloSeatReportTransaction = vi.mocked(
+  submitSoloSeatReportTransaction,
 );
-const mockedUpsertSoloSeatReport = vi.mocked(upsertSoloSeatReport);
 
 describe("computeSoloSeatStatus", () => {
   it("沒有回報時回傳 UNKNOWN、confidence 0", () => {
@@ -82,21 +74,15 @@ describe("computeSoloSeatStatus", () => {
 
 describe("submitSoloSeatReport", () => {
   beforeEach(() => {
-    mockedUpsertSoloSeatReport.mockReset().mockResolvedValue(undefined);
-    mockedListSoloSeatReportTypes.mockReset().mockResolvedValue([]);
-    mockedUpdateRestaurantSoloSeatStatus
-      .mockReset()
-      .mockResolvedValue(undefined);
+    mockedSubmitSoloSeatReportTransaction.mockReset().mockResolvedValue(
+      undefined,
+    );
   });
 
   // 比照 restaurantSearchService.ts 已經踩過的坑：組合層轉呼叫 Client 的地方
-  // 容易漏傳欄位，這裡直接斷言四個 Client 呼叫都有拿到完整參數。
-  it("把回報寫入、重算信心分數、寫回 Restaurant，且每個欄位都完整轉呼叫", async () => {
-    mockedListSoloSeatReportTypes.mockResolvedValue([
-      "CONFIRMED_YES",
-      "CONFIRMED_YES",
-    ]);
-
+  // 容易漏傳欄位，這裡直接斷言轉呼叫 Client transaction 函式時每個欄位都完整，
+  // 且傳入的 computeStatus callback 就是真正的純函式（而非另一份邏輯）。
+  it("把回報資料轉呼叫 Client 層的 transaction 函式，且每個欄位都完整轉呼叫", async () => {
     await submitSoloSeatReport({
       restaurantId: "r1",
       userId: "u1",
@@ -104,18 +90,13 @@ describe("submitSoloSeatReport", () => {
       note: "吧台有單人座",
     });
 
-    expect(mockedUpsertSoloSeatReport).toHaveBeenCalledWith({
+    expect(mockedSubmitSoloSeatReportTransaction).toHaveBeenCalledWith({
       restaurantId: "r1",
       userId: "u1",
       reportType: "CONFIRMED_YES",
       note: "吧台有單人座",
+      computeStatus: computeSoloSeatStatus,
     });
-    expect(mockedListSoloSeatReportTypes).toHaveBeenCalledWith("r1");
-    expect(mockedUpdateRestaurantSoloSeatStatus).toHaveBeenCalledWith(
-      "r1",
-      "CONFIRMED_YES",
-      1,
-    );
   });
 
   it("note 是 undefined 時轉呼叫 null，不是 undefined", async () => {
@@ -125,11 +106,8 @@ describe("submitSoloSeatReport", () => {
       reportType: "CONFIRMED_NO",
     });
 
-    expect(mockedUpsertSoloSeatReport).toHaveBeenCalledWith({
-      restaurantId: "r1",
-      userId: "u1",
-      reportType: "CONFIRMED_NO",
-      note: null,
-    });
+    expect(mockedSubmitSoloSeatReportTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ note: null }),
+    );
   });
 });

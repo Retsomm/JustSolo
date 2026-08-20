@@ -156,46 +156,49 @@ export const upsertUserByEmail = async (input: {
     select: { id: true },
   });
 
-export const upsertSoloSeatReport = async (input: {
+// 寫入回報、重算信心分數、寫回 Restaurant 三個步驟包在同一個 transaction 裡，
+// 並用 `SELECT ... FOR UPDATE` 鎖住該餐廳的 Restaurant row，序列化同一間店的
+// 並行回報，避免兩個使用者同時回報時，後寫入的 aggregate 蓋掉先寫入的結果。
+export const submitSoloSeatReportTransaction = async (input: {
   restaurantId: string;
   userId: string;
   reportType: SoloSeatStatus;
   note: string | null;
+  computeStatus: (
+    reportTypes: SoloSeatStatus[],
+  ) => { status: SoloSeatStatus; confidence: number };
 }): Promise<void> => {
-  await getPrisma().soloSeatReport.upsert({
-    where: {
-      restaurantId_userId: {
+  await getPrisma().$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM "Restaurant" WHERE id = ${input.restaurantId} FOR UPDATE`;
+
+    await tx.soloSeatReport.upsert({
+      where: {
+        restaurantId_userId: {
+          restaurantId: input.restaurantId,
+          userId: input.userId,
+        },
+      },
+      update: { reportType: input.reportType, note: input.note },
+      create: {
         restaurantId: input.restaurantId,
         userId: input.userId,
+        reportType: input.reportType,
+        note: input.note,
       },
-    },
-    update: { reportType: input.reportType, note: input.note },
-    create: {
-      restaurantId: input.restaurantId,
-      userId: input.userId,
-      reportType: input.reportType,
-      note: input.note,
-    },
-  });
-};
+    });
 
-export const listSoloSeatReportTypes = async (
-  restaurantId: string,
-): Promise<SoloSeatStatus[]> => {
-  const reports = await getPrisma().soloSeatReport.findMany({
-    where: { restaurantId },
-    select: { reportType: true },
-  });
-  return reports.map((r) => r.reportType);
-};
+    const reports = await tx.soloSeatReport.findMany({
+      where: { restaurantId: input.restaurantId },
+      select: { reportType: true },
+    });
 
-export const updateRestaurantSoloSeatStatus = async (
-  restaurantId: string,
-  status: SoloSeatStatus,
-  confidence: number,
-): Promise<void> => {
-  await getPrisma().restaurant.update({
-    where: { id: restaurantId },
-    data: { soloSeatStatus: status, soloSeatConfidence: confidence },
+    const { status, confidence } = input.computeStatus(
+      reports.map((r) => r.reportType),
+    );
+
+    await tx.restaurant.update({
+      where: { id: input.restaurantId },
+      data: { soloSeatStatus: status, soloSeatConfidence: confidence },
+    });
   });
 };
