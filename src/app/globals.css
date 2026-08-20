@@ -4,11 +4,15 @@
 :root {
   --background: #f3ebd8;
   --foreground: #4a3c2c;
+  --success: #2f7a3d;
+  --danger: #b3401f;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -18,6 +22,8 @@
   :root:not([data-theme="light"]) {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --success: #4ade80;
+    --danger: #f0733d;
   }
 }
 
@@ -25,6 +31,8 @@
 :root[data-theme="dark"] {
   --background: #0a0a0a;
   --foreground: #ededed;
+  --success: #4ade80;
+  --danger: #f0733d;
 }
 
 body {

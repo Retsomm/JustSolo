@@ -6,7 +6,10 @@ import { useCategories } from "@/hooks/useCategories";
 import { useDistricts } from "@/hooks/useDistricts";
 import { useRestaurantSearch } from "@/hooks/useRestaurantSearch";
 import { useRestaurantMapMarkers } from "@/hooks/useRestaurantMapMarkers";
-import type { PaginatedRestaurants, RestaurantSearchResult } from "@/types/restaurant";
+import type {
+  PaginatedRestaurants,
+  RestaurantSearchResultWithFriendliness,
+} from "@/types/restaurant";
 
 vi.mock("@/hooks/useCategories");
 vi.mock("@/hooks/useDistricts");
@@ -23,7 +26,7 @@ const mockedUseDistricts = vi.mocked(useDistricts);
 const mockedUseRestaurantSearch = vi.mocked(useRestaurantSearch);
 const mockedUseRestaurantMapMarkers = vi.mocked(useRestaurantMapMarkers);
 
-const soloSeatYesRestaurant: RestaurantSearchResult = {
+const soloSeatYesRestaurant: RestaurantSearchResultWithFriendliness = {
   id: "r1",
   name: "測試燒肉店",
   categoryName: "燒肉",
@@ -34,6 +37,9 @@ const soloSeatYesRestaurant: RestaurantSearchResult = {
   lng: 120.68,
   soloSeatStatus: "CONFIRMED_YES",
   soloSeatType: "吧台單人座",
+  soloSeatConfidence: 0.8,
+  soloFriendlinessScore: 94,
+  soloFriendlinessLabel: "非常適合單人",
 };
 
 const makePage = (
@@ -70,12 +76,13 @@ beforeEach(() => {
 });
 
 describe("首頁", () => {
-  it("顯示分類選項與餐廳卡片（含單人座位狀態文字）", () => {
+  it("顯示分類選項與餐廳卡片（含單人座位狀態文字與友善度徽章）", () => {
     render(<Home />);
 
     expect(screen.getByText("測試燒肉店")).toBeInTheDocument();
     expect(screen.getByText("台中市西區某路 1 號")).toBeInTheDocument();
     expect(screen.getByText(/已確認有單人座位/)).toBeInTheDocument();
+    expect(screen.getByText("非常適合單人")).toBeInTheDocument();
     expect(
       screen.getByRole("option", { name: "燒肉" }),
     ).toBeInTheDocument();

@@ -10,6 +10,7 @@ import { useRestaurantMapMarkers } from "@/hooks/useRestaurantMapMarkers";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { soloSeatStatusLabel } from "@/lib/soloSeatLabel";
 import { Pagination } from "@/components/Pagination";
+import { FriendlinessBadge } from "@/components/FriendlinessBadge";
 
 // Leaflet 存取 window，SSR 階段會噴錯，動態載入並關掉 ssr。
 const RestaurantMap = dynamic(
@@ -182,6 +183,12 @@ export default function Home() {
                     {soloSeatStatusLabel(r.soloSeatStatus)}
                     {r.soloSeatType ? `・${r.soloSeatType}` : ""}
                   </p>
+                  <div className="mt-2">
+                    <FriendlinessBadge
+                      score={r.soloFriendlinessScore}
+                      label={r.soloFriendlinessLabel}
+                    />
+                  </div>
                 </Link>
               </li>
             ))}

@@ -9,6 +9,7 @@ import {
   getRestaurantMapMarkers,
   searchRestaurants,
 } from "@/server/services/restaurantSearchService";
+import { getRestaurantPlaceDetails } from "@/server/services/placeDetailsService";
 
 export const restaurantRouter = router({
   search: publicProcedure
@@ -22,4 +23,8 @@ export const restaurantRouter = router({
   mapMarkers: publicProcedure
     .input(restaurantFilterInputSchema)
     .query(({ input }) => getRestaurantMapMarkers(input)),
+
+  placeDetails: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(({ input }) => getRestaurantPlaceDetails(input.id)),
 });

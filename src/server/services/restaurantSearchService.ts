@@ -1,63 +1,87 @@
 import { findRestaurantById, findRestaurants } from "@/server/clients/prismaClient";
+import { paginate } from "@/lib/pagination";
 import type {
   PaginatedRestaurants,
   RestaurantDetail,
   RestaurantFilterInput,
   RestaurantMapMarker,
   RestaurantSearchResult,
+  RestaurantSearchResultWithFriendliness,
   SearchRestaurantsInput,
+  SoloFriendliness,
   SoloSeatStatus,
 } from "@/types/restaurant";
 
 export const RESTAURANT_PAGE_SIZE = 10;
 
-const soloSeatSortOrder: Record<SoloSeatStatus, number> = {
-  CONFIRMED_YES: 0,
-  UNKNOWN: 1,
-  CONFIRMED_NO: 2,
+// 「單人用餐友善度」分數的標籤門檻，由高到低。CONFIRMED_YES 落在 70-100、
+// UNKNOWN 落在 40-45、CONFIRMED_NO 落在 0-20，門檻刻意抓在各區間之間，
+// 分數排序時三種狀態的群組順序（YES > UNKNOWN > NO）不會被打亂。
+export const resolveSoloFriendlinessLabel = (score: number): string => {
+  if (score >= 85) return "非常適合單人";
+  if (score >= 65) return "適合單人";
+  if (score >= 35) return "未知，建議致電確認";
+  return "不建議單人前往";
 };
 
-// 純函式：不碰 DB，只針對已取得的清單做篩選/排序，方便單元測試。
+// 純函式：把單人座位狀態/信心分數/座位類型描述換算成一個 0-100 的友善度分數。
+// CONFIRMED_YES：底分 70 + 信心分數貢獻最多 30 分；CONFIRMED_NO：信心分數越高分數越低
+// （越確定沒有單人座位越不友善）；UNKNOWN：固定中段分數。三種狀態都有
+// soloSeatType（座位類型描述）的加分，代表已知的具體資訊越多越有參考價值。
+export const computeSoloFriendlinessScore = (input: {
+  soloSeatStatus: SoloSeatStatus;
+  soloSeatConfidence: number;
+  soloSeatType: string | null;
+}): SoloFriendliness => {
+  const typeBonus = input.soloSeatType ? 5 : 0;
+
+  const rawScore = (() => {
+    switch (input.soloSeatStatus) {
+      case "CONFIRMED_YES":
+        return 70 + Math.round(input.soloSeatConfidence * 30) + typeBonus;
+      case "CONFIRMED_NO":
+        return Math.round((1 - input.soloSeatConfidence) * 20);
+      case "UNKNOWN":
+        return 40 + typeBonus;
+    }
+  })();
+
+  const score = Math.min(100, Math.max(0, rawScore));
+
+  return {
+    soloFriendlinessScore: score,
+    soloFriendlinessLabel: resolveSoloFriendlinessLabel(score),
+  };
+};
+
+// 純函式：不碰 DB，只針對已取得的清單做篩選/排序，並附上算好的友善度分數，
+// 方便單元測試。依友善度分數由高到低排序——因為三種 soloSeatStatus 對應的
+// 分數區間不重疊，群組順序（CONFIRMED_YES > UNKNOWN > CONFIRMED_NO）維持
+// 不變，只是同一狀態內會依信心分數/座位類型細分排序。
 export const filterAndSortBySoloSeat = (
   restaurants: RestaurantSearchResult[],
   soloSeatOnly: boolean,
-): RestaurantSearchResult[] => {
+): RestaurantSearchResultWithFriendliness[] => {
   const filtered = soloSeatOnly
     ? restaurants.filter((r) => r.soloSeatStatus === "CONFIRMED_YES")
     : restaurants;
 
-  return [...filtered].sort((a, b) => {
-    const statusDiff =
-      soloSeatSortOrder[a.soloSeatStatus] - soloSeatSortOrder[b.soloSeatStatus];
-    return statusDiff !== 0 ? statusDiff : a.id.localeCompare(b.id);
+  const withFriendliness = filtered.map((r) => ({
+    ...r,
+    ...computeSoloFriendlinessScore(r),
+  }));
+
+  return withFriendliness.sort((a, b) => {
+    const scoreDiff = b.soloFriendlinessScore - a.soloFriendlinessScore;
+    return scoreDiff !== 0 ? scoreDiff : a.id.localeCompare(b.id);
   });
-};
-
-// 純函式：把已排序好的清單切成單一頁，並算出分頁需要的中繼資料，方便單元測試。
-export const paginate = <T>(
-  items: T[],
-  page: number,
-  pageSize: number,
-): { items: T[]; page: number; pageSize: number; totalCount: number; totalPages: number } => {
-  const totalCount = items.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const safePage = Math.min(Math.max(1, page), totalPages);
-  const start = (safePage - 1) * pageSize;
-
-  return {
-    items: items.slice(start, start + pageSize),
-    page: safePage,
-    pageSize,
-    totalCount,
-    totalPages,
-  };
 };
 
 // 共用組合層：呼叫 Client 拿資料、套用篩選/排序，清單（分頁）跟地圖（不分頁）都靠這個
 // 函式取得同一份「篩選後」的結果，避免兩處各自組 Client 參數導致漏傳篩選欄位。
 const fetchFilteredRestaurants = async (
   input: RestaurantFilterInput,
-): Promise<RestaurantSearchResult[]> => {
+): Promise<RestaurantSearchResultWithFriendliness[]> => {
   const restaurants = await findRestaurants({
     category: input.category,
     district: input.district,
@@ -101,6 +125,13 @@ export const getRestaurantMapMarkers = async (
   return toMapMarkers(filtered);
 };
 
-// 純粹轉呼叫 Client 層，沒有額外業務邏輯，故不另立單元測試。
-export const getRestaurantById = (id: string): Promise<RestaurantDetail | null> =>
-  findRestaurantById(id);
+// 組合層：呼叫 Client 拿原始詳情，補上算好的友善度分數（Client 層只回傳
+// I/O 原始欄位，不含業務邏輯）。
+export const getRestaurantById = async (
+  id: string,
+): Promise<RestaurantDetail | null> => {
+  const restaurant = await findRestaurantById(id);
+  if (!restaurant) return null;
+
+  return { ...restaurant, ...computeSoloFriendlinessScore(restaurant) };
+};
