@@ -63,7 +63,7 @@ export const AvatarUploader = () => {
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col items-center gap-3 sm:items-start">
       {profile?.image ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -86,7 +86,7 @@ export const AvatarUploader = () => {
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="cursor-pointer self-start rounded border border-foreground/15 px-3 py-1.5 text-xs text-foreground hover:bg-foreground/5"
+        className="cursor-pointer rounded border border-foreground/15 px-3 py-1.5 text-xs text-foreground hover:bg-foreground/5"
       >
         上傳大頭貼
       </button>

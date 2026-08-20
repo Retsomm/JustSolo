@@ -174,8 +174,8 @@ export default function Home() {
               >
                 <div className="p-4">
                   <Link href={`/restaurant/${r.id}`} className="block">
-                    <div className="flex items-center justify-between gap-2">
-                      <h2 className="font-semibold text-foreground">
+                    <div className="flex items-start justify-between gap-2">
+                      <h2 className="min-w-0 flex-1 font-semibold text-foreground">
                         {r.name}
                       </h2>
                       <span className="shrink-0 text-xs text-foreground/50">

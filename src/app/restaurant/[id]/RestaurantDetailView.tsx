@@ -47,8 +47,10 @@ export const RestaurantDetailView = ({ id }: RestaurantDetailViewProps) => {
       {data && (
         <>
           <article className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <h1 className="text-xl font-bold text-foreground">{data.name}</h1>
+            <div className="flex items-start justify-between gap-2">
+              <h1 className="min-w-0 flex-1 text-xl font-bold text-foreground">
+                {data.name}
+              </h1>
               <div className="flex shrink-0 items-center gap-2">
                 <span className="text-xs text-foreground/60">
                   {data.categoryName}

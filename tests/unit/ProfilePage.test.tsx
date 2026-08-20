@@ -5,7 +5,7 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import ProfilePage from "@/app/profile/page";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
-import type { RestaurantSearchResultWithFriendliness } from "@/types/restaurant";
+import type { PaginatedRestaurants } from "@/types/restaurant";
 
 vi.mock("next-auth/react", () => ({
   useSession: vi.fn(),
@@ -37,7 +37,7 @@ const mockedUseSession = vi.mocked(useSession);
 const mockedUseFavorites = vi.mocked(useFavorites);
 const mockedUseToggleFavorite = vi.mocked(useToggleFavorite);
 
-const favorite: RestaurantSearchResultWithFriendliness = {
+const favorite: PaginatedRestaurants["items"][number] = {
   id: "r1",
   name: "測試燒肉店",
   categoryName: "燒肉",
@@ -53,20 +53,36 @@ const favorite: RestaurantSearchResultWithFriendliness = {
   soloFriendlinessLabel: "非常適合單人",
 };
 
+const makePaginated = (
+  overrides: Partial<PaginatedRestaurants> = {},
+): PaginatedRestaurants => ({
+  items: [],
+  page: 1,
+  pageSize: 10,
+  totalCount: 0,
+  totalPages: 1,
+  ...overrides,
+});
+
+const signedInSession = {
+  data: { user: { name: "小明", email: "ming@example.com", image: null } },
+  status: "authenticated",
+} as unknown as ReturnType<typeof useSession>;
+
 describe("ProfilePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedUseFavorites.mockReturnValue({
+      data: makePaginated(),
+      isLoading: false,
+    } as unknown as ReturnType<typeof useFavorites>);
   });
 
-  it("未登入時顯示登入提示，不查詢收藏清單", () => {
+  it("未登入時顯示登入提示", () => {
     mockedUseSession.mockReturnValue({
       data: null,
       status: "unauthenticated",
     } as unknown as ReturnType<typeof useSession>);
-    mockedUseFavorites.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-    } as unknown as ReturnType<typeof useFavorites>);
 
     render(<ProfilePage />);
 
@@ -80,10 +96,6 @@ describe("ProfilePage", () => {
       data: null,
       status: "unauthenticated",
     } as unknown as ReturnType<typeof useSession>);
-    mockedUseFavorites.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-    } as unknown as ReturnType<typeof useFavorites>);
 
     render(<ProfilePage />);
     await userEvent.click(screen.getByRole("button", { name: "登入" }));
@@ -91,31 +103,42 @@ describe("ProfilePage", () => {
     expect(signIn).toHaveBeenCalledWith("google");
   });
 
-  it("已登入且沒有收藏時顯示使用者資訊與空清單提示", () => {
-    mockedUseSession.mockReturnValue({
-      data: { user: { name: "小明", email: "ming@example.com", image: null } },
-      status: "authenticated",
-    } as unknown as ReturnType<typeof useSession>);
-    mockedUseFavorites.mockReturnValue({
-      data: [],
-      isLoading: false,
-    } as unknown as ReturnType<typeof useFavorites>);
+  it("已登入時預設顯示「個人資料」分頁（信箱與登出按鈕），不是收藏清單", () => {
+    mockedUseSession.mockReturnValue(signedInSession);
 
     render(<ProfilePage />);
 
     expect(screen.getByText("ming@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "登出" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("尚無收藏資料，去餐廳詳情頁點愛心加入收藏吧。"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("個人資料分頁點擊登出按鈕會呼叫 signOut", async () => {
+    mockedUseSession.mockReturnValue(signedInSession);
+
+    render(<ProfilePage />);
+    await userEvent.click(screen.getByRole("button", { name: "登出" }));
+
+    expect(signOut).toHaveBeenCalled();
+  });
+
+  it("切到「我的收藏」分頁，沒有收藏時顯示空清單提示", async () => {
+    mockedUseSession.mockReturnValue(signedInSession);
+
+    render(<ProfilePage />);
+    await userEvent.click(screen.getByRole("tab", { name: "我的收藏" }));
+
     expect(
       screen.getByText("尚無收藏資料，去餐廳詳情頁點愛心加入收藏吧。"),
     ).toBeInTheDocument();
   });
 
-  it("已登入且有收藏時顯示收藏清單，點擊「移除收藏」會呼叫 toggle mutation 並 invalidate 清單", async () => {
-    mockedUseSession.mockReturnValue({
-      data: { user: { name: "小明", email: "ming@example.com", image: null } },
-      status: "authenticated",
-    } as unknown as ReturnType<typeof useSession>);
+  it("切到「我的收藏」分頁，有收藏時顯示清單，點擊「移除收藏」會呼叫 toggle mutation 並 invalidate 清單", async () => {
+    mockedUseSession.mockReturnValue(signedInSession);
     mockedUseFavorites.mockReturnValue({
-      data: [favorite],
+      data: makePaginated({ items: [favorite], totalCount: 1 }),
       isLoading: false,
     } as unknown as ReturnType<typeof useFavorites>);
 
@@ -128,6 +151,7 @@ describe("ProfilePage", () => {
     } as unknown as ReturnType<typeof useToggleFavorite>);
 
     render(<ProfilePage />);
+    await userEvent.click(screen.getByRole("tab", { name: "我的收藏" }));
 
     expect(screen.getByText("測試燒肉店")).toBeInTheDocument();
 
@@ -140,19 +164,21 @@ describe("ProfilePage", () => {
     expect(listInvalidate).toHaveBeenCalled();
   });
 
-  it("已登入時頁面底部顯示登出按鈕，點擊會呼叫 signOut", async () => {
-    mockedUseSession.mockReturnValue({
-      data: { user: { name: "小明", email: "ming@example.com", image: null } },
-      status: "authenticated",
-    } as unknown as ReturnType<typeof useSession>);
+  it("收藏超過一頁時，「我的收藏」分頁會顯示分頁按鈕", async () => {
+    mockedUseSession.mockReturnValue(signedInSession);
     mockedUseFavorites.mockReturnValue({
-      data: [],
+      data: makePaginated({
+        items: [favorite],
+        page: 1,
+        totalCount: 12,
+        totalPages: 2,
+      }),
       isLoading: false,
     } as unknown as ReturnType<typeof useFavorites>);
 
     render(<ProfilePage />);
-    await userEvent.click(screen.getByRole("button", { name: "登出" }));
+    await userEvent.click(screen.getByRole("tab", { name: "我的收藏" }));
 
-    expect(signOut).toHaveBeenCalled();
+    expect(screen.getByRole("navigation", { name: "分頁" })).toBeInTheDocument();
   });
 });

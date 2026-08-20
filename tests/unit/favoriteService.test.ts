@@ -84,20 +84,42 @@ describe("checkIsFavorited", () => {
 });
 
 describe("listFavoriteRestaurants", () => {
-  it("把 Client 層回傳的清單補上友善度分數/標籤", async () => {
+  it("把 Client 層回傳的清單補上友善度分數/標籤，並回傳分頁後第 1 頁", async () => {
     mockedListFavoriteRestaurantsByUserId.mockResolvedValue([
       makeRestaurant({ id: "r1", soloSeatStatus: "CONFIRMED_YES", soloSeatConfidence: 1 }),
     ]);
 
-    const result = await listFavoriteRestaurants("u1");
+    const result = await listFavoriteRestaurants("u1", 1);
 
     expect(mockedListFavoriteRestaurantsByUserId).toHaveBeenCalledWith("u1");
-    expect(result).toEqual([
+    expect(result).toEqual(
       expect.objectContaining({
-        id: "r1",
-        soloFriendlinessScore: expect.any(Number),
-        soloFriendlinessLabel: expect.any(String),
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+        items: [
+          expect.objectContaining({
+            id: "r1",
+            soloFriendlinessScore: expect.any(Number),
+            soloFriendlinessLabel: expect.any(String),
+          }),
+        ],
       }),
-    ]);
+    );
+  });
+
+  it("收藏筆數超過一頁時，依 page 參數切出正確的那一頁", async () => {
+    mockedListFavoriteRestaurantsByUserId.mockResolvedValue(
+      Array.from({ length: 12 }, (_, i) => makeRestaurant({ id: `r${i + 1}` })),
+    );
+
+    const result = await listFavoriteRestaurants("u1", 2);
+
+    expect(result.page).toBe(2);
+    expect(result.totalPages).toBe(2);
+    expect(result.totalCount).toBe(12);
+    expect(result.items).toHaveLength(2);
+    expect(result.items.map((r) => r.id)).toEqual(["r11", "r12"]);
   });
 });

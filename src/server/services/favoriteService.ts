@@ -4,8 +4,12 @@ import {
   listFavoriteRestaurantsByUserId,
   removeFavorite,
 } from "@/server/clients/prismaClient";
-import { computeSoloFriendlinessScore } from "@/server/services/restaurantSearchService";
-import type { RestaurantSearchResultWithFriendliness } from "@/types/restaurant";
+import {
+  computeSoloFriendlinessScore,
+  RESTAURANT_PAGE_SIZE,
+} from "@/server/services/restaurantSearchService";
+import { paginate } from "@/lib/pagination";
+import type { PaginatedRestaurants } from "@/types/restaurant";
 
 // 組合層：先查目前是否已收藏，反向切換並回傳新狀態。收藏是使用者自己對自己資料
 // 的操作（不像 SoloSeatReport 是多人共用同一份 aggregate），並行風險僅限於
@@ -35,10 +39,17 @@ export const checkIsFavorited = (
 ): Promise<boolean> => findFavoriteByUserAndRestaurant(userId, restaurantId);
 
 // 組合層：跟 restaurantSearchService 的 searchRestaurants 一樣，Client 層只回傳
-// 原始欄位，友善度分數留在 Service 層算好才回傳。
+// 原始欄位，友善度分數留在 Service 層算好才回傳；分頁也比照同一套（同一個
+// RESTAURANT_PAGE_SIZE、同一個 paginate 純函式），收藏筆數多時個人頁面不會
+// 一次全部塞在畫面上。
 export const listFavoriteRestaurants = async (
   userId: string,
-): Promise<RestaurantSearchResultWithFriendliness[]> => {
+  page: number,
+): Promise<PaginatedRestaurants> => {
   const restaurants = await listFavoriteRestaurantsByUserId(userId);
-  return restaurants.map((r) => ({ ...r, ...computeSoloFriendlinessScore(r) }));
+  const withFriendliness = restaurants.map((r) => ({
+    ...r,
+    ...computeSoloFriendlinessScore(r),
+  }));
+  return paginate(withFriendliness, page, RESTAURANT_PAGE_SIZE);
 };

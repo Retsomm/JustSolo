@@ -1,5 +1,8 @@
 import { router, protectedProcedure } from "@/server/trpc";
-import { favoriteRestaurantInputSchema } from "@/types/favorite";
+import {
+  favoriteRestaurantInputSchema,
+  listFavoritesInputSchema,
+} from "@/types/favorite";
 import {
   checkIsFavorited,
   listFavoriteRestaurants,
@@ -19,7 +22,9 @@ export const favoriteRouter = router({
       checkIsFavorited(ctx.session.user.id, input.restaurantId),
     ),
 
-  list: protectedProcedure.query(({ ctx }) =>
-    listFavoriteRestaurants(ctx.session.user.id),
-  ),
+  list: protectedProcedure
+    .input(listFavoritesInputSchema)
+    .query(({ input, ctx }) =>
+      listFavoriteRestaurants(ctx.session.user.id, input.page),
+    ),
 });
