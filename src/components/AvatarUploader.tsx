@@ -9,7 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { UserIcon } from "@/components/icons/AuthIcons";
 
 const FOCUSABLE_SELECTOR =
-  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 type CropDialogProps = {
   imageSrc: string;
@@ -116,7 +116,11 @@ const CropDialog = ({
         className="w-72 max-w-full"
       />
 
-      {error && <p className="text-xs text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      )}
 
       <div className="flex gap-2">
         <button
@@ -175,6 +179,7 @@ export const AvatarUploader = () => {
 
   const handleCancel = () => {
     setImageSrc(null);
+    setError(null);
   };
 
   const handleConfirm = async () => {
