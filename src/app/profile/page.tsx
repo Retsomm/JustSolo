@@ -29,8 +29,13 @@ const RemoveFavoriteButton = ({ restaurantId }: { restaurantId: string }) => {
       disabled={toggleFavorite.isPending}
       onClick={() =>
         toggleFavorite.mutate(
-          { restaurantId },
-          { onSuccess: () => utils.favorite.list.invalidate() },
+          { restaurantId, isFavorited: false },
+          {
+            onSuccess: () => {
+              utils.favorite.isFavorited.invalidate({ restaurantId });
+              utils.favorite.list.invalidate();
+            },
+          },
         )
       }
       className="shrink-0 cursor-pointer rounded border border-foreground/15 px-2 py-1 text-xs text-foreground hover:bg-foreground/5 disabled:opacity-50"
@@ -40,7 +45,7 @@ const RemoveFavoriteButton = ({ restaurantId }: { restaurantId: string }) => {
   );
 };
 
-export default function ProfilePage() {
+const ProfilePage = () => {
   const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState<TabKey>("profile");
   const [page, setPage] = useState(1);
@@ -161,4 +166,6 @@ export default function ProfilePage() {
       )}
     </main>
   );
-}
+};
+
+export default ProfilePage;

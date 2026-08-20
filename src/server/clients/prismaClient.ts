@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
+import { resolvePageWindow } from "@/lib/pagination";
 import type {
   RestaurantDetail,
   RestaurantSearchResult,
@@ -185,28 +186,54 @@ export const findFavoriteByUserAndRestaurant = async (
   return favorite !== null;
 };
 
+export type PaginatedFavoriteRestaurants = {
+  items: RestaurantSearchResult[];
+  totalCount: number;
+  page: number;
+  totalPages: number;
+};
+
+// 分頁直接在 DB 層做（skip/take + count），不像 searchRestaurants 得先把整批
+// 結果撈進記憶體才能切頁——那邊是因為要先依 Service 層算出的友善度分數排序，
+// 這裡只依 createdAt 排序（DB 排得動），收藏筆數多時不需要每次都整批撈回來。
 export const listFavoriteRestaurantsByUserId = async (
   userId: string,
-): Promise<RestaurantSearchResult[]> => {
+  page: number,
+  pageSize: number,
+): Promise<PaginatedFavoriteRestaurants> => {
+  const totalCount = await getPrisma().favorite.count({ where: { userId } });
+  const { page: safePage, totalPages, skip } = resolvePageWindow(
+    totalCount,
+    page,
+    pageSize,
+  );
+
   const favorites = await getPrisma().favorite.findMany({
     where: { userId },
     include: { restaurant: { include: { category: true } } },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip,
+    take: pageSize,
   });
 
-  return favorites.map(({ restaurant: r }) => ({
-    id: r.id,
-    name: r.name,
-    categoryName: r.category.name,
-    city: r.city,
-    district: r.district,
-    address: r.address,
-    lat: r.lat,
-    lng: r.lng,
-    soloSeatStatus: r.soloSeatStatus,
-    soloSeatType: r.soloSeatType,
-    soloSeatConfidence: r.soloSeatConfidence,
-  }));
+  return {
+    items: favorites.map(({ restaurant: r }) => ({
+      id: r.id,
+      name: r.name,
+      categoryName: r.category.name,
+      city: r.city,
+      district: r.district,
+      address: r.address,
+      lat: r.lat,
+      lng: r.lng,
+      soloSeatStatus: r.soloSeatStatus,
+      soloSeatType: r.soloSeatType,
+      soloSeatConfidence: r.soloSeatConfidence,
+    })),
+    totalCount,
+    page: safePage,
+    totalPages,
+  };
 };
 
 // update 故意留空：name/image 只在「第一次註冊」時採用 Google 的值當預設，

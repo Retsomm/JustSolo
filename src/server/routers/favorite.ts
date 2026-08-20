@@ -2,6 +2,7 @@ import { router, protectedProcedure } from "@/server/trpc";
 import {
   favoriteRestaurantInputSchema,
   listFavoritesInputSchema,
+  toggleFavoriteInputSchema,
 } from "@/types/favorite";
 import {
   checkIsFavorited,
@@ -11,9 +12,9 @@ import {
 
 export const favoriteRouter = router({
   toggle: protectedProcedure
-    .input(favoriteRestaurantInputSchema)
+    .input(toggleFavoriteInputSchema)
     .mutation(({ input, ctx }) =>
-      toggleFavorite(ctx.session.user.id, input.restaurantId),
+      toggleFavorite(ctx.session.user.id, input.restaurantId, input.isFavorited),
     ),
 
   isFavorited: protectedProcedure

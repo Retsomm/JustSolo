@@ -25,10 +25,14 @@ vi.mock("@/components/EditableName", () => ({
 }));
 
 const listInvalidate = vi.fn();
+const isFavoritedInvalidate = vi.fn();
 vi.mock("@/lib/trpc", () => ({
   trpc: {
     useUtils: vi.fn(() => ({
-      favorite: { list: { invalidate: listInvalidate } },
+      favorite: {
+        list: { invalidate: listInvalidate },
+        isFavorited: { invalidate: isFavoritedInvalidate },
+      },
     })),
   },
 }));
@@ -158,9 +162,10 @@ describe("ProfilePage", () => {
     await userEvent.click(screen.getByRole("button", { name: "移除收藏" }));
 
     expect(mutate).toHaveBeenCalledWith(
-      { restaurantId: "r1" },
+      { restaurantId: "r1", isFavorited: false },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+    expect(isFavoritedInvalidate).toHaveBeenCalledWith({ restaurantId: "r1" });
     expect(listInvalidate).toHaveBeenCalled();
   });
 

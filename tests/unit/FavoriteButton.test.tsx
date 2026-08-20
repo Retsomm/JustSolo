@@ -36,6 +36,40 @@ describe("FavoriteButton", () => {
     vi.clearAllMocks();
   });
 
+  it("session 狀態為 loading 時顯示不可操作的載入狀態", () => {
+    mockedUseSession.mockReturnValue({
+      data: null,
+      status: "loading",
+    } as unknown as ReturnType<typeof useSession>);
+    mockedUseFavoriteStatus.mockReturnValue({
+      data: undefined,
+    } as unknown as ReturnType<typeof useFavoriteStatus>);
+
+    render(<FavoriteButton restaurantId="r1" />);
+
+    const button = screen.getByRole("button", { name: "收藏狀態載入中" });
+    expect(button).toBeDisabled();
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
+  it("已登入但收藏狀態尚未取得時，按鈕停用避免誤觸切換成錯誤狀態", () => {
+    mockedUseSession.mockReturnValue({
+      data: { user: { name: "小明" } },
+      status: "authenticated",
+    } as unknown as ReturnType<typeof useSession>);
+    mockedUseFavoriteStatus.mockReturnValue({
+      data: undefined,
+    } as unknown as ReturnType<typeof useFavoriteStatus>);
+    mockedUseToggleFavorite.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof useToggleFavorite>);
+
+    render(<FavoriteButton restaurantId="r1" />);
+
+    expect(screen.getByRole("button", { name: "加入收藏" })).toBeDisabled();
+  });
+
   it("未登入時點擊會呼叫 signIn(\"google\")，不查詢收藏狀態", async () => {
     mockedUseSession.mockReturnValue({
       data: null,
@@ -74,7 +108,7 @@ describe("FavoriteButton", () => {
     await userEvent.click(screen.getByRole("button", { name: "加入收藏" }));
 
     expect(mutate).toHaveBeenCalledWith(
-      { restaurantId: "r1" },
+      { restaurantId: "r1", isFavorited: true },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
     expect(isFavoritedInvalidate).toHaveBeenCalledWith({ restaurantId: "r1" });

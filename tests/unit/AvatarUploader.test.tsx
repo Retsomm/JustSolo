@@ -36,8 +36,8 @@ type MockCropperStubProps = {
 // mount 後立刻回呼 onCropComplete 模擬使用者已經選好裁切區域。定義寫在 vi.mock 工廠函式
 // 內部（不是另外宣告一個外部 const 再參照進來）：vi.mock 會被 hoist 到檔案最上面，
 // 若參照的是後面才宣告的外部 const，執行當下那個 const 還沒初始化會直接噴錯。
-vi.mock("react-easy-crop", () => ({
-  default: function MockCropperStub({ onCropComplete }: MockCropperStubProps) {
+vi.mock("react-easy-crop", () => {
+  const MockCropperStub = ({ onCropComplete }: MockCropperStubProps) => {
     useEffect(() => {
       onCropComplete?.(
         { x: 0, y: 0, width: 50, height: 50 },
@@ -48,8 +48,10 @@ vi.mock("react-easy-crop", () => ({
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     return <div data-testid="cropper-stub" />;
-  },
-}));
+  };
+
+  return { default: MockCropperStub };
+});
 
 const mockedUseUpdateUserAvatar = vi.mocked(useUpdateUserAvatar);
 const mockedUseUserProfile = vi.mocked(useUserProfile);
