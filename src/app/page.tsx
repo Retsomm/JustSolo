@@ -137,6 +137,7 @@ export default function Home() {
         <button
           type="button"
           onClick={() => setView("list")}
+          aria-pressed={view === "list"}
           className={
             view === "list"
               ? "rounded bg-foreground px-3 py-1 text-sm text-background"
@@ -148,6 +149,7 @@ export default function Home() {
         <button
           type="button"
           onClick={() => setView("map")}
+          aria-pressed={view === "map"}
           className={
             view === "map"
               ? "rounded bg-foreground px-3 py-1 text-sm text-background"
