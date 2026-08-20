@@ -1,6 +1,10 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
-import type { RestaurantDetail, RestaurantSearchResult } from "@/types/restaurant";
+import type {
+  RestaurantDetail,
+  RestaurantSearchResult,
+  SoloSeatStatus,
+} from "@/types/restaurant";
 import type { CategoryOption } from "@/types/category";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
@@ -56,7 +60,7 @@ export const findRestaurantById = async (
 ): Promise<RestaurantDetail | null> => {
   const restaurant = await getPrisma().restaurant.findUnique({
     where: { id },
-    include: { category: true },
+    include: { category: true, _count: { select: { reports: true } } },
   });
 
   if (!restaurant) return null;
@@ -72,6 +76,8 @@ export const findRestaurantById = async (
     lng: restaurant.lng,
     soloSeatStatus: restaurant.soloSeatStatus,
     soloSeatType: restaurant.soloSeatType,
+    soloSeatConfidence: restaurant.soloSeatConfidence,
+    reportCount: restaurant._count.reports,
     phone: restaurant.phone,
   };
 };
@@ -137,3 +143,59 @@ export const upsertRestaurantByPlaceId = (data: RestaurantUpsertInput) =>
       categoryId: data.categoryId,
     },
   });
+
+export const upsertUserByEmail = async (input: {
+  email: string;
+  name: string | null;
+  image: string | null;
+}): Promise<{ id: string }> =>
+  getPrisma().user.upsert({
+    where: { email: input.email },
+    update: { name: input.name, image: input.image },
+    create: { email: input.email, name: input.name, image: input.image },
+    select: { id: true },
+  });
+
+export const upsertSoloSeatReport = async (input: {
+  restaurantId: string;
+  userId: string;
+  reportType: SoloSeatStatus;
+  note: string | null;
+}): Promise<void> => {
+  await getPrisma().soloSeatReport.upsert({
+    where: {
+      restaurantId_userId: {
+        restaurantId: input.restaurantId,
+        userId: input.userId,
+      },
+    },
+    update: { reportType: input.reportType, note: input.note },
+    create: {
+      restaurantId: input.restaurantId,
+      userId: input.userId,
+      reportType: input.reportType,
+      note: input.note,
+    },
+  });
+};
+
+export const listSoloSeatReportTypes = async (
+  restaurantId: string,
+): Promise<SoloSeatStatus[]> => {
+  const reports = await getPrisma().soloSeatReport.findMany({
+    where: { restaurantId },
+    select: { reportType: true },
+  });
+  return reports.map((r) => r.reportType);
+};
+
+export const updateRestaurantSoloSeatStatus = async (
+  restaurantId: string,
+  status: SoloSeatStatus,
+  confidence: number,
+): Promise<void> => {
+  await getPrisma().restaurant.update({
+    where: { id: restaurantId },
+    data: { soloSeatStatus: status, soloSeatConfidence: confidence },
+  });
+};

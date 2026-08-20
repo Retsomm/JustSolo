@@ -45,14 +45,27 @@ model Restaurant {
   @@index([city])
 }
 
-// MVP 尚未接 UI/API，先保留 schema 給 Phase 2 眾包回報機制用
+model User {
+  id        String           @id @default(cuid())
+  email     String           @unique
+  name      String?
+  image     String?
+  createdAt DateTime         @default(now())
+  reports   SoloSeatReport[]
+}
+
+// 一人一店一票：同一使用者對同一間店重複回報會覆寫，不會疊加洗分數
 model SoloSeatReport {
   id           String         @id @default(cuid())
   restaurantId String
   restaurant   Restaurant     @relation(fields: [restaurantId], references: [id])
+  userId       String
+  user         User           @relation(fields: [userId], references: [id])
   reportType   SoloSeatStatus
   note         String?
   createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
+  @@unique([restaurantId, userId])
   @@index([restaurantId])
 }

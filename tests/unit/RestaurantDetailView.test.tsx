@@ -5,6 +5,11 @@ import { useRestaurantDetail } from "@/hooks/useRestaurantDetail";
 import type { RestaurantDetail } from "@/types/restaurant";
 
 vi.mock("@/hooks/useRestaurantDetail");
+// 回報表單本身有自己的測試（SoloSeatReportForm.test.tsx），這裡只關心詳情頁本身的呈現，
+// 用一個簡單的 stub 避免要另外準備 SessionProvider/tRPC Provider。
+vi.mock("@/components/SoloSeatReportForm", () => ({
+  SoloSeatReportForm: () => null,
+}));
 
 const mockedUseRestaurantDetail = vi.mocked(useRestaurantDetail);
 
@@ -20,6 +25,8 @@ const restaurant: RestaurantDetail = {
   soloSeatStatus: "CONFIRMED_YES",
   soloSeatType: "吧台單人座",
   phone: "04-1234 5678",
+  soloSeatConfidence: 0,
+  reportCount: 0,
 };
 
 describe("RestaurantDetailView", () => {
@@ -57,6 +64,28 @@ describe("RestaurantDetailView", () => {
     render(<RestaurantDetailView id="not-exist" />);
 
     expect(screen.getByText("找不到這間餐廳。")).toBeInTheDocument();
+  });
+
+  it("有回報時顯示單人座位信心分數與回報則數", () => {
+    mockedUseRestaurantDetail.mockReturnValue({
+      data: { ...restaurant, soloSeatConfidence: 0.75, reportCount: 4 },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useRestaurantDetail>);
+
+    render(<RestaurantDetailView id="r1" />);
+
+    expect(screen.getByText("單人座位信心：75%（4 則回報）")).toBeInTheDocument();
+  });
+
+  it("沒有回報時不顯示信心分數", () => {
+    mockedUseRestaurantDetail.mockReturnValue({
+      data: restaurant,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useRestaurantDetail>);
+
+    render(<RestaurantDetailView id="r1" />);
+
+    expect(screen.queryByText(/單人座位信心/)).not.toBeInTheDocument();
   });
 
   it("載入中時顯示載入中文字", () => {
