@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPaginationItems } from "@/lib/pagination";
+import { buildPaginationItems, paginate } from "@/lib/pagination";
 
 describe("buildPaginationItems", () => {
   it("只有 1 頁時只顯示 1", () => {
@@ -32,5 +32,51 @@ describe("buildPaginationItems", () => {
 
   it("目前頁緊鄰前段時不會出現多餘的刪節號", () => {
     expect(buildPaginationItems(3, 10)).toEqual([1, 2, 3, "ellipsis", 9, 10]);
+  });
+});
+
+describe("paginate", () => {
+  const items = Array.from({ length: 25 }, (_, i) => i + 1);
+
+  it("回傳指定頁的資料與分頁中繼資料", () => {
+    expect(paginate(items, 1, 10)).toEqual({
+      items: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      page: 1,
+      pageSize: 10,
+      totalCount: 25,
+      totalPages: 3,
+    });
+  });
+
+  it("回傳最後一頁時筆數可以少於 pageSize", () => {
+    const result = paginate(items, 3, 10);
+
+    expect(result.items).toEqual([21, 22, 23, 24, 25]);
+    expect(result.totalPages).toBe(3);
+  });
+
+  it("page 超過 totalPages 時夾回最後一頁", () => {
+    const result = paginate(items, 99, 10);
+
+    expect(result.page).toBe(3);
+    expect(result.items).toEqual([21, 22, 23, 24, 25]);
+  });
+
+  it("page 小於 1 時夾回第 1 頁", () => {
+    const result = paginate(items, 0, 10);
+
+    expect(result.page).toBe(1);
+  });
+
+  it("沒有資料時 totalPages 至少是 1", () => {
+    const result = paginate([], 1, 10);
+
+    expect(result).toEqual({
+      items: [],
+      page: 1,
+      pageSize: 10,
+      totalCount: 0,
+      totalPages: 1,
+    });
   });
 });

@@ -37,7 +37,17 @@ export type RestaurantSearchResult = {
   lng: number | null;
   soloSeatStatus: SoloSeatStatus;
   soloSeatType: string | null;
+  soloSeatConfidence: number;
 };
+
+// 由 Service 層 computeSoloFriendlinessScore 算出，不是 Client 層原始欄位。
+export type SoloFriendliness = {
+  soloFriendlinessScore: number;
+  soloFriendlinessLabel: string;
+};
+
+export type RestaurantSearchResultWithFriendliness = RestaurantSearchResult &
+  SoloFriendliness;
 
 export type RestaurantMapMarker = {
   id: string;
@@ -48,15 +58,14 @@ export type RestaurantMapMarker = {
 };
 
 export type PaginatedRestaurants = {
-  items: RestaurantSearchResult[];
+  items: RestaurantSearchResultWithFriendliness[];
   page: number;
   pageSize: number;
   totalCount: number;
   totalPages: number;
 };
 
-export type RestaurantDetail = RestaurantSearchResult & {
+export type RestaurantDetail = RestaurantSearchResultWithFriendliness & {
   phone: string | null;
-  soloSeatConfidence: number;
   reportCount: number;
 };

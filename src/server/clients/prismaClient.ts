@@ -52,12 +52,19 @@ export const findRestaurants = async (params: {
     lng: r.lng,
     soloSeatStatus: r.soloSeatStatus,
     soloSeatType: r.soloSeatType,
+    soloSeatConfidence: r.soloSeatConfidence,
   }));
 };
 
+// 回傳「原始」餐廳詳情，不含 soloFriendlinessScore/soloFriendlinessLabel——
+// 那兩個欄位是業務邏輯，由 Service 層的 getRestaurantById 算出後補上，
+// Client 層只負責 I/O。
 export const findRestaurantById = async (
   id: string,
-): Promise<RestaurantDetail | null> => {
+): Promise<Omit<
+  RestaurantDetail,
+  "soloFriendlinessScore" | "soloFriendlinessLabel"
+> | null> => {
   const restaurant = await getPrisma().restaurant.findUnique({
     where: { id },
     include: { category: true, _count: { select: { reports: true } } },
@@ -80,6 +87,19 @@ export const findRestaurantById = async (
     reportCount: restaurant._count.reports,
     phone: restaurant.phone,
   };
+};
+
+// 輕量查詢，只給 placeDetailsService 用來查 Google placeId，不動既有的
+// findRestaurantById（避免動到已經測過、使用者確認過的既有詳情頁欄位）。
+export const findRestaurantPlaceId = async (
+  id: string,
+): Promise<string | null> => {
+  const restaurant = await getPrisma().restaurant.findUnique({
+    where: { id },
+    select: { placeId: true },
+  });
+
+  return restaurant?.placeId ?? null;
 };
 
 export const findOrCreateCategory = (name: string) =>

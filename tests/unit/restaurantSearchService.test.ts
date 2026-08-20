@@ -1,9 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { findRestaurants } from "@/server/clients/prismaClient";
 import {
+  computeSoloFriendlinessScore,
   filterAndSortBySoloSeat,
   getRestaurantMapMarkers,
-  paginate,
+  resolveSoloFriendlinessLabel,
   searchRestaurants,
   toMapMarkers,
 } from "@/server/services/restaurantSearchService";
@@ -28,7 +29,113 @@ const makeRestaurant = (
   lng: 120.6736,
   soloSeatStatus: "UNKNOWN",
   soloSeatType: null,
+  soloSeatConfidence: 0,
   ...overrides,
+});
+
+describe("computeSoloFriendlinessScore", () => {
+  it("CONFIRMED_YES：底分 70 + 信心分數貢獻最多 30 分", () => {
+    expect(
+      computeSoloFriendlinessScore({
+        soloSeatStatus: "CONFIRMED_YES",
+        soloSeatConfidence: 0,
+        soloSeatType: null,
+      }),
+    ).toEqual({ soloFriendlinessScore: 70, soloFriendlinessLabel: "適合單人" });
+
+    expect(
+      computeSoloFriendlinessScore({
+        soloSeatStatus: "CONFIRMED_YES",
+        soloSeatConfidence: 1,
+        soloSeatType: null,
+      }),
+    ).toEqual({
+      soloFriendlinessScore: 100,
+      soloFriendlinessLabel: "非常適合單人",
+    });
+  });
+
+  it("CONFIRMED_YES：有 soloSeatType 加 5 分，但總分不超過 100", () => {
+    const result = computeSoloFriendlinessScore({
+      soloSeatStatus: "CONFIRMED_YES",
+      soloSeatConfidence: 1,
+      soloSeatType: "吧台單人座",
+    });
+
+    expect(result.soloFriendlinessScore).toBe(100);
+  });
+
+  it("CONFIRMED_NO：信心分數越高分數越低，且不會落到「適合」等級", () => {
+    expect(
+      computeSoloFriendlinessScore({
+        soloSeatStatus: "CONFIRMED_NO",
+        soloSeatConfidence: 1,
+        soloSeatType: null,
+      }),
+    ).toEqual({
+      soloFriendlinessScore: 0,
+      soloFriendlinessLabel: "不建議單人前往",
+    });
+
+    expect(
+      computeSoloFriendlinessScore({
+        soloSeatStatus: "CONFIRMED_NO",
+        soloSeatConfidence: 0,
+        soloSeatType: null,
+      }),
+    ).toEqual({
+      soloFriendlinessScore: 20,
+      soloFriendlinessLabel: "不建議單人前往",
+    });
+  });
+
+  it("CONFIRMED_NO：有 soloSeatType 一樣加 5 分，但仍不會落到「適合」等級", () => {
+    expect(
+      computeSoloFriendlinessScore({
+        soloSeatStatus: "CONFIRMED_NO",
+        soloSeatConfidence: 0,
+        soloSeatType: "吧台單人座",
+      }),
+    ).toEqual({
+      soloFriendlinessScore: 25,
+      soloFriendlinessLabel: "不建議單人前往",
+    });
+  });
+
+  it("UNKNOWN：固定中段分數，soloSeatType 加 5 分", () => {
+    expect(
+      computeSoloFriendlinessScore({
+        soloSeatStatus: "UNKNOWN",
+        soloSeatConfidence: 0,
+        soloSeatType: null,
+      }),
+    ).toEqual({
+      soloFriendlinessScore: 40,
+      soloFriendlinessLabel: "未知，建議致電確認",
+    });
+
+    expect(
+      computeSoloFriendlinessScore({
+        soloSeatStatus: "UNKNOWN",
+        soloSeatConfidence: 0,
+        soloSeatType: "單人小桌",
+      }),
+    ).toEqual({
+      soloFriendlinessScore: 45,
+      soloFriendlinessLabel: "未知，建議致電確認",
+    });
+  });
+});
+
+describe("resolveSoloFriendlinessLabel", () => {
+  it("依分數門檻回傳對應標籤（邊界值）", () => {
+    expect(resolveSoloFriendlinessLabel(85)).toBe("非常適合單人");
+    expect(resolveSoloFriendlinessLabel(84)).toBe("適合單人");
+    expect(resolveSoloFriendlinessLabel(65)).toBe("適合單人");
+    expect(resolveSoloFriendlinessLabel(64)).toBe("未知，建議致電確認");
+    expect(resolveSoloFriendlinessLabel(35)).toBe("未知，建議致電確認");
+    expect(resolveSoloFriendlinessLabel(34)).toBe("不建議單人前往");
+  });
 });
 
 describe("filterAndSortBySoloSeat", () => {
@@ -67,50 +174,36 @@ describe("filterAndSortBySoloSeat", () => {
 
     expect(restaurants).toEqual(original);
   });
-});
 
-describe("paginate", () => {
-  const items = Array.from({ length: 25 }, (_, i) => i + 1);
+  it("同一個 soloSeatStatus 內，信心分數較高的排前面", () => {
+    const restaurants = [
+      makeRestaurant({
+        id: "1",
+        soloSeatStatus: "CONFIRMED_YES",
+        soloSeatConfidence: 0.2,
+      }),
+      makeRestaurant({
+        id: "2",
+        soloSeatStatus: "CONFIRMED_YES",
+        soloSeatConfidence: 0.9,
+      }),
+    ];
 
-  it("回傳指定頁的資料與分頁中繼資料", () => {
-    expect(paginate(items, 1, 10)).toEqual({
-      items: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-      page: 1,
-      pageSize: 10,
-      totalCount: 25,
-      totalPages: 3,
-    });
+    const result = filterAndSortBySoloSeat(restaurants, false);
+
+    expect(result.map((r) => r.id)).toEqual(["2", "1"]);
   });
 
-  it("回傳最後一頁時筆數可以少於 pageSize", () => {
-    const result = paginate(items, 3, 10);
+  it("回傳的每一筆都附上算好的友善度分數與標籤", () => {
+    const restaurants = [
+      makeRestaurant({ id: "1", soloSeatStatus: "CONFIRMED_YES", soloSeatConfidence: 1 }),
+    ];
 
-    expect(result.items).toEqual([21, 22, 23, 24, 25]);
-    expect(result.totalPages).toBe(3);
-  });
+    const result = filterAndSortBySoloSeat(restaurants, false);
 
-  it("page 超過 totalPages 時夾回最後一頁", () => {
-    const result = paginate(items, 99, 10);
-
-    expect(result.page).toBe(3);
-    expect(result.items).toEqual([21, 22, 23, 24, 25]);
-  });
-
-  it("page 小於 1 時夾回第 1 頁", () => {
-    const result = paginate(items, 0, 10);
-
-    expect(result.page).toBe(1);
-  });
-
-  it("沒有資料時 totalPages 至少是 1", () => {
-    const result = paginate([], 1, 10);
-
-    expect(result).toEqual({
-      items: [],
-      page: 1,
-      pageSize: 10,
-      totalCount: 0,
-      totalPages: 1,
+    expect(result[0]).toMatchObject({
+      soloFriendlinessScore: 100,
+      soloFriendlinessLabel: "非常適合單人",
     });
   });
 });
