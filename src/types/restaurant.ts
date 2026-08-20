@@ -8,12 +8,17 @@ export const soloSeatStatusSchema = z.enum([
 
 export type SoloSeatStatus = z.infer<typeof soloSeatStatusSchema>;
 
-export const searchRestaurantsInputSchema = z.object({
+export const restaurantFilterInputSchema = z.object({
   category: z.string().optional(),
   district: z.string().optional(),
   keyword: z.string().optional(),
   city: z.string().default("台中市"),
   soloSeatOnly: z.boolean().default(false),
+});
+
+export type RestaurantFilterInput = z.infer<typeof restaurantFilterInputSchema>;
+
+export const searchRestaurantsInputSchema = restaurantFilterInputSchema.extend({
   page: z.number().int().min(1).default(1),
 });
 
@@ -28,8 +33,18 @@ export type RestaurantSearchResult = {
   city: string;
   district: string | null;
   address: string;
+  lat: number | null;
+  lng: number | null;
   soloSeatStatus: SoloSeatStatus;
   soloSeatType: string | null;
+};
+
+export type RestaurantMapMarker = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  soloSeatStatus: SoloSeatStatus;
 };
 
 export type PaginatedRestaurants = {

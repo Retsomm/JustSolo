@@ -5,15 +5,23 @@ import Home from "@/app/page";
 import { useCategories } from "@/hooks/useCategories";
 import { useDistricts } from "@/hooks/useDistricts";
 import { useRestaurantSearch } from "@/hooks/useRestaurantSearch";
+import { useRestaurantMapMarkers } from "@/hooks/useRestaurantMapMarkers";
 import type { PaginatedRestaurants, RestaurantSearchResult } from "@/types/restaurant";
 
 vi.mock("@/hooks/useCategories");
 vi.mock("@/hooks/useDistricts");
 vi.mock("@/hooks/useRestaurantSearch");
+vi.mock("@/hooks/useRestaurantMapMarkers");
+vi.mock("@/components/RestaurantMap", () => ({
+  RestaurantMap: ({ restaurants }: { restaurants: { id: string }[] }) => (
+    <div data-testid="restaurant-map-mock">地圖 marker 數：{restaurants.length}</div>
+  ),
+}));
 
 const mockedUseCategories = vi.mocked(useCategories);
 const mockedUseDistricts = vi.mocked(useDistricts);
 const mockedUseRestaurantSearch = vi.mocked(useRestaurantSearch);
+const mockedUseRestaurantMapMarkers = vi.mocked(useRestaurantMapMarkers);
 
 const soloSeatYesRestaurant: RestaurantSearchResult = {
   id: "r1",
@@ -22,6 +30,8 @@ const soloSeatYesRestaurant: RestaurantSearchResult = {
   city: "台中市",
   district: null,
   address: "台中市西區某路 1 號",
+  lat: 24.15,
+  lng: 120.68,
   soloSeatStatus: "CONFIRMED_YES",
   soloSeatType: "吧台單人座",
 };
@@ -52,6 +62,11 @@ beforeEach(() => {
     data: makePage(),
     isLoading: false,
   } as unknown as ReturnType<typeof useRestaurantSearch>);
+
+  mockedUseRestaurantMapMarkers.mockReturnValue({
+    data: [],
+    isLoading: false,
+  } as unknown as ReturnType<typeof useRestaurantMapMarkers>);
 });
 
 describe("首頁", () => {
@@ -177,6 +192,49 @@ describe("首頁：店名搜尋", () => {
 
     expect(mockedUseRestaurantSearch).toHaveBeenLastCalledWith(
       expect.objectContaining({ keyword: "燒肉", page: 1 }),
+    );
+  });
+});
+
+describe("首頁：列表/地圖切換", () => {
+  it("預設是列表檢視，不會渲染地圖元件", () => {
+    render(<Home />);
+
+    expect(screen.getByText("測試燒肉店")).toBeInTheDocument();
+    expect(screen.queryByTestId("restaurant-map-mock")).not.toBeInTheDocument();
+  });
+
+  it("點擊「地圖」會切換成地圖檢視，不再顯示餐廳清單", async () => {
+    mockedUseRestaurantMapMarkers.mockReturnValue({
+      data: [
+        { id: "r1", name: "測試燒肉店", lat: 24.15, lng: 120.68, soloSeatStatus: "CONFIRMED_YES" },
+      ],
+      isLoading: false,
+    } as unknown as ReturnType<typeof useRestaurantMapMarkers>);
+
+    render(<Home />);
+
+    await userEvent.click(screen.getByRole("button", { name: "地圖" }));
+
+    expect(await screen.findByTestId("restaurant-map-mock")).toHaveTextContent(
+      "地圖 marker 數：1",
+    );
+    expect(screen.queryByText("台中市西區某路 1 號")).not.toBeInTheDocument();
+  });
+
+  it("切到地圖檢視時，useRestaurantMapMarkers 的 enabled 才會是 true", async () => {
+    render(<Home />);
+
+    expect(mockedUseRestaurantMapMarkers).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ enabled: false }),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "地圖" }));
+
+    expect(mockedUseRestaurantMapMarkers).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ enabled: true }),
     );
   });
 });

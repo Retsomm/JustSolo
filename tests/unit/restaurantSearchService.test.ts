@@ -2,8 +2,10 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { findRestaurants } from "@/server/clients/prismaClient";
 import {
   filterAndSortBySoloSeat,
+  getRestaurantMapMarkers,
   paginate,
   searchRestaurants,
+  toMapMarkers,
 } from "@/server/services/restaurantSearchService";
 import type { RestaurantSearchResult } from "@/types/restaurant";
 
@@ -22,6 +24,8 @@ const makeRestaurant = (
   city: "台中市",
   district: null,
   address: "台中市某路 1 號",
+  lat: 24.1477,
+  lng: 120.6736,
   soloSeatStatus: "UNKNOWN",
   soloSeatType: null,
   ...overrides,
@@ -137,5 +141,83 @@ describe("searchRestaurants", () => {
       keyword: "貳食",
       city: "台中市",
     });
+  });
+});
+
+describe("toMapMarkers", () => {
+  it("濾掉 lat/lng 任一為 null 的餐廳，並只保留 marker 需要的欄位", () => {
+    const restaurants = [
+      makeRestaurant({ id: "1", lat: 24.1, lng: 120.6 }),
+      makeRestaurant({ id: "2", lat: null }),
+      makeRestaurant({ id: "3", lng: null }),
+      makeRestaurant({ id: "4", lat: null, lng: null }),
+    ];
+
+    const result = toMapMarkers(restaurants);
+
+    expect(result).toEqual([
+      {
+        id: "1",
+        name: "測試餐廳",
+        lat: 24.1,
+        lng: 120.6,
+        soloSeatStatus: "UNKNOWN",
+      },
+    ]);
+  });
+});
+
+describe("getRestaurantMapMarkers", () => {
+  beforeEach(() => {
+    mockedFindRestaurants.mockReset();
+  });
+
+  // 比照 searchRestaurants 的接線測試：確保這個組合層一樣有把篩選欄位完整
+  // 轉呼叫給 findRestaurants，不要重蹈之前漏傳 district/keyword 的坑。
+  it("把 category/district/keyword/city 完整轉呼叫給 findRestaurants", async () => {
+    mockedFindRestaurants.mockResolvedValue([]);
+
+    await getRestaurantMapMarkers({
+      category: "燒肉",
+      district: "西區",
+      keyword: "貳食",
+      city: "台中市",
+      soloSeatOnly: false,
+    });
+
+    expect(mockedFindRestaurants).toHaveBeenCalledWith({
+      category: "燒肉",
+      district: "西區",
+      keyword: "貳食",
+      city: "台中市",
+    });
+  });
+
+  it("soloSeatOnly=true 時只回傳 CONFIRMED_YES 的 marker", async () => {
+    mockedFindRestaurants.mockResolvedValue([
+      makeRestaurant({ id: "1", soloSeatStatus: "CONFIRMED_YES" }),
+      makeRestaurant({ id: "2", soloSeatStatus: "UNKNOWN" }),
+    ]);
+
+    const result = await getRestaurantMapMarkers({
+      city: "台中市",
+      soloSeatOnly: true,
+    });
+
+    expect(result.map((r) => r.id)).toEqual(["1"]);
+  });
+
+  it("排除沒有座標的餐廳", async () => {
+    mockedFindRestaurants.mockResolvedValue([
+      makeRestaurant({ id: "1", lat: 24.1, lng: 120.6 }),
+      makeRestaurant({ id: "2", lat: null, lng: null }),
+    ]);
+
+    const result = await getRestaurantMapMarkers({
+      city: "台中市",
+      soloSeatOnly: false,
+    });
+
+    expect(result.map((r) => r.id)).toEqual(["1"]);
   });
 });
