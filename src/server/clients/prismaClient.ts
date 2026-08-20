@@ -44,6 +44,8 @@ export const findRestaurants = async (params: {
     city: r.city,
     district: r.district,
     address: r.address,
+    lat: r.lat,
+    lng: r.lng,
     soloSeatStatus: r.soloSeatStatus,
     soloSeatType: r.soloSeatType,
   }));
@@ -66,6 +68,8 @@ export const findRestaurantById = async (
     city: restaurant.city,
     district: restaurant.district,
     address: restaurant.address,
+    lat: restaurant.lat,
+    lng: restaurant.lng,
     soloSeatStatus: restaurant.soloSeatStatus,
     soloSeatType: restaurant.soloSeatType,
     phone: restaurant.phone,

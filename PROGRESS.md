@@ -57,8 +57,8 @@
 | 主題色切換（深色/淺色，淺色用米色系不用死白） | ✅ 完成程式碼＋**使用者已本機測試確認 OK**（2026-08-20） | 2026-08-19 使用者要求：「因為 code review 達限制沒觸發」時新增的小功能。淺色主題背景 `#f3ebd8`（米色）、文字 `#4a3c2c`（深棕），不是純白/純黑。`src/lib/theme.ts` 純函式 `resolveTheme`（決定套用哪個主題：手動選過的 > 系統偏好 > 淺色）/`toggleTheme`，6 個單元測試。`NavBar.tsx` 改成 client component 加切換按鈕，`layout.tsx` 依照 Next.js 官方「[Preventing Flash before Hydration](node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md)」文件的作法：`<head>` 塞一段 inline script 在瀏覽器繪製前讀 localStorage 設定 `data-theme` 屬性，`<html>` 加 `suppressHydrationWarning`，`NavBar` 用 `useLayoutEffect`（不是 `useEffect`）在繪製前重新套用一次（因為 dev 模式 React Strict Mode 重新掛載會把 inline script 設的屬性清掉，這是官方文件明確提到的已知情況）。`tests/setup.ts` 補了 `window.matchMedia` 的假實作（jsdom 沒有內建）。`NavBar.test.tsx` 新增 4 個測試涵蓋：跟隨系統偏好、已存過的選擇優先於系統偏好、點擊會寫回 localStorage 並更新 DOM 屬性。共 55 個測試全過。使用者接著要求按鈕拿掉文字/emoji，只留簡約線條圖示——已改成<br>`src/components/icons/ThemeIcons.tsx` 手寫的 inline SVG（`SunIcon`/`MoonIcon`，<br>stroke 線條風格，`currentColor` 跟著 `text-foreground` 走，沒有另外裝圖示套件），<br>按鈕保留 `aria-label` 供螢幕閱讀器使用 |
 | NavBar SSR/hydration 一致性修正 | ✅ 完成程式碼＋**使用者已本機測試確認 OK**（2026-08-20） | 2026-08-19 由並行的 VS Code session 修正、整合進這個 session：上一版主題切換的 `useLayoutEffect` 一掛載就同步讀 `localStorage`/`matchMedia` 並 `setTheme`，伺服器渲染（`typeof window === "undefined"`）跟瀏覽器 hydration 第一次 render 用的初始值不一致，會觸發 React hydration mismatch。改成 `useState<Theme>("light")` 初始值固定為 `"light"`（跟 SSR 結果一致），實際主題留到 hydration 完成後的 effect 裡才校正；effect 內另外訂閱 `matchMedia` 的 `change` 事件，手動選過主題後不會被系統偏好切換覆蓋（用 `isManualRef` 判斷）。測試方法幾經修正：一開始用 process 層級的 `uncaughtException`/`unhandledRejection` 攔截 mismatch，實測對 React 19 可自動修補的 mismatch 完全抓不到、斷言恆真沒有保護力，改用 `hydrateRoot` 官方提供的 `onRecoverableError` 選項才是可靠偵測方式（`NavBar.test.tsx` 新增 `renderToString` + `hydrateRoot` 的 SSR+hydration 一致性測試）。共 61 個單元測試全過，typecheck/lint/build 均乾淨。 |
 | 行政區匯入資料改用地址驗證（不再直接信任查詢來源） | ✅ 完成程式碼＋已重新匯入＋**使用者已本機測試確認 OK**（2026-08-20） | 2026-08-19 由並行的 VS Code session 修正、整合進這個 session：先前 `toRestaurantUpsertInput` 的 `district` 直接採用查詢時帶入的行政區字串（例如查「台中市西區餐廳」查到的結果就存 `district: "西區"`），但 Google Places Text Search 是相關性排序，同一筆結果可能因為排名被帶到鄰近行政區的查詢裡，導致存入錯誤的行政區。改成驗證 Google 回傳的權威地址欄位（`place.address`）是否真的包含該行政區名稱字串，驗證不過就存 `null`（寧可缺值也不要存錯）。已重新跑過 `yarn import:restaurants`（分區查詢 29 個行政區，耗時約 156 秒，`upsertRestaurantByPlaceId` 用 `placeId` upsert 不會重複），現況 DB 共 1953 筆，1795 筆（91.9%）有經過地址驗證的行政區資料。 |
-| 使用者帳號/眾包回報 UI | 🔲 未開始（Phase 2） | schema 已預留，MVP 刻意不做 |
-| 地圖檢視 | 🔲 未開始（Phase 2） | |
+| 使用者帳號/眾包回報 UI | 🔲 未開始（Phase 2） | schema 已預留，MVP 刻意不做；已與使用者確認未來要做**輕量帳號系統**（不是純匿名+限流），實作留到動工時再規劃 |
+| 地圖檢視（Phase 2 第一項） | ✅ 完成程式碼＋**使用者已本機測試確認 OK**（2026-08-20） | 2026-08-20 使用者選定 Phase 2 優先做這項，用 `EnterPlanMode` 規劃後實作。**架構**：`findRestaurants`（Client 層）本來就是「依篩選條件撈全部符合資料、不分頁」，只是回傳型別沒帶 `lat`/`lng`——補上這兩個欄位後，Service 層抽出共用的 `fetchFilteredRestaurants`，`searchRestaurants`（清單，加 `paginate`）跟新的 `getRestaurantMapMarkers`（地圖，加 `toMapMarkers` 濾掉無座標資料）都呼叫同一個共用函式，避免兩處各自組 Client 參數重蹈「漏傳篩選欄位」的坑（呼應已知的坑第 16 條）。`searchRestaurantsInputSchema` 拆出共用的 `restaurantFilterInputSchema`（不含 `page`），新的 `restaurant.mapMarkers` tRPC procedure 重用它。**前端**：新增 `leaflet`/`react-leaflet`/`react-leaflet-cluster` 依賴；`src/components/RestaurantMap.tsx` 用 `MapContainer`+`TileLayer`（OpenStreetMap）+`MarkerClusterGroup`+`Marker`+`Popup`；marker 故意不用 Leaflet 預設 PNG icon（Next.js 打包常見的路徑 404 問題），改用 `L.divIcon` 畫依 `soloSeatStatus` 上色的圓點（綠/灰/橘），一眼看出單人座位可信度；popup 文字**刻意用固定深色**（`text-gray-900`），不是會翻轉的 `text-foreground`——因為 Leaflet popup 背景固定白色、不隨 App 深色模式翻轉，用會翻轉的文字色深色模式下會白字疊白底看不見（跟已知的坑第 10 條同類但方向相反的情況，新記一筆避免以後在 Leaflet popup 這種「有自己固定背景色的第三方元件內容」裡誤用主題 token）。首頁 `page.tsx` 加「列表/地圖」切換鈕，`RestaurantMap` 用 `next/dynamic({ssr:false})` 動態載入（避免 Leaflet 存取 `window` 在 SSR 階段噴錯），`useRestaurantMapMarkers` 只有切到地圖檢視時才會 `enabled: true` 打 API。單元測試新增 `toMapMarkers`/`getRestaurantMapMarkers`（含接線測試）、`RestaurantMap.test.tsx`（mock `react-leaflet`/`react-leaflet-cluster`，比照既有慣例避免在 jsdom 裡真的渲染地圖）、`HomePage.test.tsx` 新增列表/地圖切換互動測試，共 71 個全過。`yarn build` 確認 `/` 仍能靜態預渲染，SSR 沒有因為動態載入 Leaflet 而噴錯；`yarn lint` 乾淨。使用者本機測試地圖圖磚顯示、marker 顏色/聚合、popup 連結皆確認 OK。 |
 
 ## 已知的坑（環境建置時踩過，未來不要重踩）
 
@@ -175,6 +175,15 @@
     只信賴型別檢查「有 optional 欄位就不會報錯」這件事——這次修完後有補上
     `tests/unit/restaurantSearchService.test.ts` 的 `searchRestaurants` 測試，並且刻意
     revert 一次程式碼實測確認這個測試真的會抓到這個 bug 才算數，不是寫了測試就相信它有效。
+17. **Leaflet `Popup` 的背景色是寫死的白色（來自 `leaflet.css`），不會跟著 App 的
+    `bg-background`/`text-foreground` 深色模式 token 一起翻轉**：這跟已知的坑第 10 條
+    「背景色寫死、文字忘記配對」方向相反——這次是「背景色被第三方套件寫死，我們自己的文字
+    卻想用會翻轉的 token」，深色模式下 `text-foreground` 會是接近白色，疊在 Leaflet 固定白色
+    的 popup 背景上就看不見。**教訓**：把 App 自己的 UI 元件跟「內容渲染在有自己固定樣式的
+    第三方元件裡」（例如地圖 popup、第三方 modal/tooltip 套件的預設樣式）分開判斷——後者要
+    看那個第三方元件的背景色是不是真的會跟著我們的主題 token 翻轉，不是看到自己專案有這組
+    token 就到處套用。`src/components/RestaurantMap.tsx` 的 popup 內容目前用固定的
+    `text-gray-900`/`text-gray-600`，不是 `text-foreground`。
 
 ## 下次接續開發時，建議的下一步（依優先序）
 
@@ -193,7 +202,9 @@
 9. 手動標註前 10-20 間熟悉的店的 `soloSeatStatus`/`soloSeatType`，作為第一批可信資料
    （目前資料全是 `UNKNOWN`，篩選「僅顯示有單人座位」現在測起來會是空結果，這是預期的，
    不是 bug——可以先用 Prisma Studio `yarn db:studio` 手動改幾筆來測 UI）
-10. Phase 2：眾包回報 UI（`SoloSeatReport` schema 已有）、地圖檢視、帳號系統
+10. ~~Phase 2：地圖檢視~~ ✅ 2026-08-20 完成，使用者已本機測試確認 OK（見上方進度對照表）
+11. Phase 2：眾包回報 UI（`SoloSeatReport` schema 已有，使用者已確認要做**輕量帳號系統**
+    而不是純匿名+限流）、帳號系統
 
 ## 給接手對話的 AI 模型的提醒
 

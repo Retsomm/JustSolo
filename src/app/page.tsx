@@ -1,16 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCategories } from "@/hooks/useCategories";
 import { useDistricts } from "@/hooks/useDistricts";
 import { useRestaurantSearch } from "@/hooks/useRestaurantSearch";
+import { useRestaurantMapMarkers } from "@/hooks/useRestaurantMapMarkers";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { soloSeatStatusLabel } from "@/lib/soloSeatLabel";
 import { Pagination } from "@/components/Pagination";
 
+// Leaflet 存取 window，SSR 階段會噴錯，動態載入並關掉 ssr。
+const RestaurantMap = dynamic(
+  () => import("@/components/RestaurantMap").then((mod) => mod.RestaurantMap),
+  { ssr: false },
+);
+
 const CITY = "台中市";
 const SEARCH_DEBOUNCE_MS = 300;
+
+type View = "list" | "map";
 
 export default function Home() {
   const [category, setCategory] = useState<string | undefined>(undefined);
@@ -18,6 +28,7 @@ export default function Home() {
   const [keywordInput, setKeywordInput] = useState("");
   const [soloSeatOnly, setSoloSeatOnly] = useState(false);
   const [page, setPage] = useState(1);
+  const [view, setView] = useState<View>("list");
 
   const debouncedKeyword = useDebouncedValue(keywordInput, SEARCH_DEBOUNCE_MS);
 
@@ -31,6 +42,16 @@ export default function Home() {
     soloSeatOnly,
     page,
   });
+  const { data: mapMarkers, isLoading: isMapLoading } = useRestaurantMapMarkers(
+    {
+      category,
+      district,
+      keyword: debouncedKeyword || undefined,
+      city: CITY,
+      soloSeatOnly,
+    },
+    { enabled: view === "map" },
+  );
 
   const restaurants = data?.items ?? [];
 
@@ -112,43 +133,79 @@ export default function Home() {
         </label>
       </div>
 
-      {isLoading && <p className="text-sm text-foreground/60">搜尋中…</p>}
+      <div className="flex gap-2" role="group" aria-label="切換檢視模式">
+        <button
+          type="button"
+          onClick={() => setView("list")}
+          className={
+            view === "list"
+              ? "rounded bg-foreground px-3 py-1 text-sm text-background"
+              : "rounded border border-foreground/15 px-3 py-1 text-sm text-foreground hover:bg-foreground/5"
+          }
+        >
+          列表
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("map")}
+          className={
+            view === "map"
+              ? "rounded bg-foreground px-3 py-1 text-sm text-background"
+              : "rounded border border-foreground/15 px-3 py-1 text-sm text-foreground hover:bg-foreground/5"
+          }
+        >
+          地圖
+        </button>
+      </div>
 
-      <ul className="flex flex-col gap-3">
-        {restaurants.map((r) => (
-          <li
-            className="rounded border border-foreground/10 hover:bg-foreground/5"
-            key={r.id}
-          >
-            <Link href={`/restaurant/${r.id}`} className="block p-4">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="font-semibold text-foreground">{r.name}</h2>
-                <span className="shrink-0 text-xs text-foreground/50">
-                  {r.categoryName}
-                </span>
-              </div>
-              <p className="text-sm text-foreground/60">{r.address}</p>
-              <p className="mt-1 text-sm text-foreground/70">
-                {soloSeatStatusLabel(r.soloSeatStatus)}
-                {r.soloSeatType ? `・${r.soloSeatType}` : ""}
-              </p>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {view === "list" && (
+        <>
+          {isLoading && <p className="text-sm text-foreground/60">搜尋中…</p>}
 
-      {!isLoading && restaurants.length === 0 && (
-        <p className="text-sm text-foreground/60">
-          目前沒有符合條件的餐廳，換個篩選條件試試？
-        </p>
+          <ul className="flex flex-col gap-3">
+            {restaurants.map((r) => (
+              <li
+                className="rounded border border-foreground/10 hover:bg-foreground/5"
+                key={r.id}
+              >
+                <Link href={`/restaurant/${r.id}`} className="block p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="font-semibold text-foreground">{r.name}</h2>
+                    <span className="shrink-0 text-xs text-foreground/50">
+                      {r.categoryName}
+                    </span>
+                  </div>
+                  <p className="text-sm text-foreground/60">{r.address}</p>
+                  <p className="mt-1 text-sm text-foreground/70">
+                    {soloSeatStatusLabel(r.soloSeatStatus)}
+                    {r.soloSeatType ? `・${r.soloSeatType}` : ""}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {!isLoading && restaurants.length === 0 && (
+            <p className="text-sm text-foreground/60">
+              目前沒有符合條件的餐廳，換個篩選條件試試？
+            </p>
+          )}
+
+          {data && (
+            <Pagination
+              page={data.page}
+              totalPages={data.totalPages}
+              onPageChange={setPage}
+            />
+          )}
+        </>
       )}
 
-      {data && (
-        <Pagination
-          page={data.page}
-          totalPages={data.totalPages}
-          onPageChange={setPage}
-        />
+      {view === "map" && (
+        <>
+          {isMapLoading && <p className="text-sm text-foreground/60">地圖載入中…</p>}
+          <RestaurantMap restaurants={mapMarkers ?? []} />
+        </>
       )}
     </main>
   );

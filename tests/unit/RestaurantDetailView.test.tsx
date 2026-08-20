@@ -15,6 +15,8 @@ const restaurant: RestaurantDetail = {
   city: "台中市",
   district: null,
   address: "台中市西區某路 1 號",
+  lat: 24.15,
+  lng: 120.68,
   soloSeatStatus: "CONFIRMED_YES",
   soloSeatType: "吧台單人座",
   phone: "04-1234 5678",
