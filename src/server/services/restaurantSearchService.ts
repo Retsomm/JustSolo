@@ -2,9 +2,11 @@ import { findRestaurantById, findRestaurants } from "@/server/clients/prismaClie
 import { paginate } from "@/lib/pagination";
 import type {
   PaginatedRestaurants,
+  PickRestaurantInput,
   RestaurantDetail,
   RestaurantFilterInput,
   RestaurantMapMarker,
+  RestaurantPick,
   RestaurantSearchResult,
   RestaurantSearchResultWithFriendliness,
   SearchRestaurantsInput,
@@ -112,10 +114,27 @@ export const toMapMarkers = (
     .map((r) => ({
       id: r.id,
       name: r.name,
+      categoryName: r.categoryName,
+      address: r.address,
       lat: r.lat,
       lng: r.lng,
       soloSeatStatus: r.soloSeatStatus,
     }));
+
+// 純函式：從已篩選好的清單裡濾掉 excludeIds、隨機挑一筆。excludeIds 把候選清單
+// 濾光時視為「循環完一輪」，改成從完整清單重新挑（不因為排除清單而卡死選不出來）。
+export const pickRandom = <T extends { id: string }>(
+  restaurants: T[],
+  excludeIds: string[],
+): T | null => {
+  if (restaurants.length === 0) return null;
+
+  const excludeSet = new Set(excludeIds);
+  const candidates = restaurants.filter((r) => !excludeSet.has(r.id));
+  const pool = candidates.length > 0 ? candidates : restaurants;
+
+  return pool[Math.floor(Math.random() * pool.length)];
+};
 
 // 組合層：跟 searchRestaurants 共用同一個篩選步驟，但不分頁、回傳地圖 marker 形狀。
 export const getRestaurantMapMarkers = async (
@@ -123,6 +142,19 @@ export const getRestaurantMapMarkers = async (
 ): Promise<RestaurantMapMarker[]> => {
   const filtered = await fetchFilteredRestaurants(input);
   return toMapMarkers(filtered);
+};
+
+// 組合層：跟 searchRestaurants/getRestaurantMapMarkers 共用同一個篩選步驟，
+// 從篩選後的結果隨機挑一筆（首頁「換一家」用），不把整份清單送到瀏覽器，
+// 只回傳挑中的一筆＋篩選後的總數（給「查看完整列表（N 家）」文案用）。
+export const pickRandomRestaurant = async (
+  input: PickRestaurantInput,
+): Promise<RestaurantPick> => {
+  const filtered = await fetchFilteredRestaurants(input);
+  return {
+    restaurant: pickRandom(filtered, input.excludeIds),
+    totalCount: filtered.length,
+  };
 };
 
 // 組合層：呼叫 Client 拿原始詳情，補上算好的友善度分數（Client 層只回傳

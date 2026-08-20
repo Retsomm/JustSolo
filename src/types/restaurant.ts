@@ -26,6 +26,12 @@ export type SearchRestaurantsInput = z.infer<
   typeof searchRestaurantsInputSchema
 >;
 
+export const pickRestaurantInputSchema = restaurantFilterInputSchema.extend({
+  excludeIds: z.array(z.string()).default([]),
+});
+
+export type PickRestaurantInput = z.infer<typeof pickRestaurantInputSchema>;
+
 export type RestaurantSearchResult = {
   id: string;
   name: string;
@@ -52,6 +58,8 @@ export type RestaurantSearchResultWithFriendliness = RestaurantSearchResult &
 export type RestaurantMapMarker = {
   id: string;
   name: string;
+  categoryName: string;
+  address: string;
   lat: number;
   lng: number;
   soloSeatStatus: SoloSeatStatus;
@@ -68,4 +76,9 @@ export type PaginatedRestaurants = {
 export type RestaurantDetail = RestaurantSearchResultWithFriendliness & {
   phone: string | null;
   reportCount: number;
+};
+
+export type RestaurantPick = {
+  restaurant: RestaurantSearchResultWithFriendliness | null;
+  totalCount: number;
 };

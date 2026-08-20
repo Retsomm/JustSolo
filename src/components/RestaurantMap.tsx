@@ -32,13 +32,14 @@ const buildStatusIcon = (status: SoloSeatStatus) =>
 
 type RestaurantMapProps = {
   restaurants: RestaurantMapMarker[];
+  center?: [number, number];
 };
 
-export const RestaurantMap = ({ restaurants }: RestaurantMapProps) => {
+export const RestaurantMap = ({ restaurants, center }: RestaurantMapProps) => {
   return (
-    <div className="h-[70vh] w-full overflow-hidden rounded border border-foreground/10">
+    <div className="h-[70vh] w-full overflow-hidden rounded-3xl border border-divider">
       <MapContainer
-        center={TAICHUNG_CENTER}
+        center={center ?? TAICHUNG_CENTER}
         zoom={DEFAULT_ZOOM}
         className="h-full w-full"
       >

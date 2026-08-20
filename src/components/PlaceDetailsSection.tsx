@@ -42,7 +42,7 @@ export const PlaceDetailsSection = ({
     }
 
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 rounded-3xl border border-divider bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
           {data.rating !== null && (
             <span>
@@ -74,13 +74,13 @@ export const PlaceDetailsSection = ({
 
   if (activeTab === "menu") {
     return (
-      <div className="flex flex-col gap-3 text-sm">
+      <div className="flex flex-col gap-2 rounded-3xl border border-divider bg-surface p-4 text-sm">
         {data.websiteUri && (
           <a
             href={data.websiteUri}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-foreground underline hover:no-underline"
+            className="text-accent underline hover:no-underline"
           >
             前往官網
           </a>
@@ -89,7 +89,7 @@ export const PlaceDetailsSection = ({
           href={data.googleMapsUri}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-foreground underline hover:no-underline"
+          className="text-accent underline hover:no-underline"
         >
           在 Google Maps 上查看菜單與更多資訊
         </a>
@@ -113,7 +113,7 @@ export const PlaceDetailsSection = ({
             href={data.googleMapsUri}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:no-underline"
+            className="text-accent underline hover:no-underline"
           >
             完整評論請至 Google Maps 查看
           </a>
@@ -123,7 +123,7 @@ export const PlaceDetailsSection = ({
         {data.reviews.map((review, i) => (
           <div
             key={`${review.authorName}-${i}`}
-            className="flex flex-col gap-1 border-t border-foreground/10 pt-2 text-sm first:border-t-0 first:pt-0"
+            className="flex flex-col gap-1 rounded-3xl border border-divider bg-surface p-4 text-sm"
           >
             <div className="flex items-center gap-2 text-foreground/70">
               <span className="text-foreground">{review.authorName}</span>

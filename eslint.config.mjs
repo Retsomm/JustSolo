@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Design 匯出的設計稿參考資料，不是這個 App 的執行程式碼，不用 lint。
+    "ui-app/**",
   ]),
 ]);
 

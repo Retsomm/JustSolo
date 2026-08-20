@@ -21,14 +21,14 @@ export const SoloSeatReportForm = ({
 
   if (status !== "authenticated") {
     return (
-      <section className="flex flex-col gap-2 rounded border border-foreground/15 p-4">
+      <section className="flex flex-col gap-2 rounded-3xl border border-divider bg-surface p-4">
         <p className="text-sm text-foreground/70">
           登入後即可回報這間餐廳是否有單人座位。
         </p>
         <button
           type="button"
           onClick={() => signIn("google")}
-          className="cursor-pointer self-start rounded border border-foreground/15 px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5"
+          className="cursor-pointer self-start rounded-full border border-divider px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5"
         >
           登入
         </button>
@@ -49,14 +49,14 @@ export const SoloSeatReportForm = ({
   };
 
   return (
-    <section className="flex flex-col gap-2 rounded border border-foreground/15 p-4">
+    <section className="flex flex-col gap-3 rounded-3xl border border-divider bg-surface p-4">
       <p className="text-sm text-foreground">這間餐廳有單人座位嗎？</p>
       <div className="flex gap-2">
         <button
           type="button"
           disabled={submitReport.isPending}
           onClick={() => handleSubmit("CONFIRMED_YES")}
-          className="cursor-pointer rounded border border-foreground/15 px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5 disabled:opacity-50"
+          className="cursor-pointer rounded-full bg-accent px-3 py-1.5 text-sm text-background hover:bg-(--color-accent-600) disabled:opacity-50"
         >
           有單人座位
         </button>
@@ -64,7 +64,7 @@ export const SoloSeatReportForm = ({
           type="button"
           disabled={submitReport.isPending}
           onClick={() => handleSubmit("CONFIRMED_NO")}
-          className="cursor-pointer rounded border border-foreground/15 px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5 disabled:opacity-50"
+          className="cursor-pointer rounded-full border border-divider px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5 disabled:opacity-50"
         >
           沒有單人座位
         </button>
@@ -74,7 +74,7 @@ export const SoloSeatReportForm = ({
         onChange={(e) => setNote(e.target.value.slice(0, NOTE_MAX_LENGTH))}
         placeholder="備註（選填，例如：吧台有 2 個單人座）"
         maxLength={NOTE_MAX_LENGTH}
-        className="rounded border border-foreground/15 bg-background p-2 text-sm text-foreground placeholder:text-foreground/40"
+        className="rounded-2xl border border-divider bg-background p-2 text-sm text-foreground placeholder:text-foreground/40"
         rows={2}
       />
       {submitReport.isError && (

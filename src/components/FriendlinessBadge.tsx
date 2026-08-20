@@ -4,7 +4,7 @@ type FriendlinessBadgeProps = {
 };
 
 const toneClassName = (score: number): string => {
-  if (score >= 65) return "bg-success/15 text-success";
+  if (score >= 65) return "bg-(--color-accent-2-100) text-(--color-accent-2-800)";
   if (score >= 35) return "bg-foreground/5 text-foreground/70";
   return "bg-danger/15 text-danger";
 };

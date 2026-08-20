@@ -42,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Claude Design 匯出的設計稿參考資料，只是重構網頁版畫面時的參考，不進版控。
+/ui-app

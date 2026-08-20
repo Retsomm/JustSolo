@@ -4,6 +4,8 @@ import {
   computeSoloFriendlinessScore,
   filterAndSortBySoloSeat,
   getRestaurantMapMarkers,
+  pickRandom,
+  pickRandomRestaurant,
   resolveSoloFriendlinessLabel,
   searchRestaurants,
   toMapMarkers,
@@ -252,11 +254,100 @@ describe("toMapMarkers", () => {
       {
         id: "1",
         name: "測試餐廳",
+        categoryName: "燒肉",
+        address: "台中市某路 1 號",
         lat: 24.1,
         lng: 120.6,
         soloSeatStatus: "UNKNOWN",
       },
     ]);
+  });
+});
+
+describe("pickRandom", () => {
+  it("清單為空時回傳 null", () => {
+    expect(pickRandom([], [])).toBeNull();
+  });
+
+  it("排除清單濾光候選人時，改成從完整清單挑（不會卡死選不出來）", () => {
+    const restaurants = [
+      makeRestaurant({ id: "1" }),
+      makeRestaurant({ id: "2" }),
+    ];
+
+    const result = pickRandom(restaurants, ["1", "2"]);
+
+    expect(result).not.toBeNull();
+    expect(["1", "2"]).toContain(result?.id);
+  });
+
+  it("排除清單只濾掉部分候選人時，只從剩下的挑", () => {
+    const restaurants = [
+      makeRestaurant({ id: "1" }),
+      makeRestaurant({ id: "2" }),
+    ];
+
+    const result = pickRandom(restaurants, ["1"]);
+
+    expect(result?.id).toBe("2");
+  });
+});
+
+describe("pickRandomRestaurant", () => {
+  beforeEach(() => {
+    mockedFindRestaurants.mockReset();
+  });
+
+  // 比照 searchRestaurants/getRestaurantMapMarkers 的接線測試：確保這個組合層
+  // 一樣有把篩選欄位完整轉呼叫給 findRestaurants。
+  it("把 category/district/keyword/city 完整轉呼叫給 findRestaurants", async () => {
+    mockedFindRestaurants.mockResolvedValue([]);
+
+    await pickRandomRestaurant({
+      category: "燒肉",
+      district: "西區",
+      keyword: "貳食",
+      city: "台中市",
+      soloSeatOnly: false,
+      excludeIds: [],
+    });
+
+    expect(mockedFindRestaurants).toHaveBeenCalledWith({
+      category: "燒肉",
+      district: "西區",
+      keyword: "貳食",
+      city: "台中市",
+    });
+  });
+
+  it("回傳篩選後的總數與挑中的一筆（含友善度分數）", async () => {
+    mockedFindRestaurants.mockResolvedValue([
+      makeRestaurant({ id: "1", soloSeatStatus: "CONFIRMED_YES" }),
+    ]);
+
+    const result = await pickRandomRestaurant({
+      city: "台中市",
+      soloSeatOnly: false,
+      excludeIds: [],
+    });
+
+    expect(result.totalCount).toBe(1);
+    expect(result.restaurant).toMatchObject({
+      id: "1",
+      soloFriendlinessScore: expect.any(Number),
+    });
+  });
+
+  it("沒有符合條件的餐廳時回傳 null 與 0", async () => {
+    mockedFindRestaurants.mockResolvedValue([]);
+
+    const result = await pickRandomRestaurant({
+      city: "台中市",
+      soloSeatOnly: false,
+      excludeIds: [],
+    });
+
+    expect(result).toEqual({ restaurant: null, totalCount: 0 });
   });
 });
 

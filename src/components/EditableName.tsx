@@ -26,7 +26,7 @@ export const EditableName = () => {
             setError(null);
             setIsEditing(true);
           }}
-          className="cursor-pointer rounded border border-foreground/15 px-2 py-0.5 text-xs text-foreground hover:bg-foreground/5"
+          className="cursor-pointer rounded-full border border-divider px-2 py-0.5 text-xs text-foreground hover:bg-foreground/5"
         >
           編輯
         </button>
@@ -61,20 +61,20 @@ export const EditableName = () => {
           onChange={(event) => setValue(event.target.value)}
           aria-label="名稱"
           maxLength={50}
-          className="rounded border border-foreground/15 bg-background px-2 py-1 text-sm text-foreground"
+          className="rounded-full border border-divider bg-background px-3 py-1 text-sm text-foreground"
         />
         <button
           type="button"
           disabled={updateName.isPending}
           onClick={handleSave}
-          className="cursor-pointer rounded bg-foreground px-2 py-1 text-xs text-background disabled:opacity-50"
+          className="cursor-pointer rounded-full bg-accent px-3 py-1 text-xs text-background disabled:opacity-50"
         >
           儲存
         </button>
         <button
           type="button"
           onClick={() => setIsEditing(false)}
-          className="cursor-pointer rounded border border-foreground/15 px-2 py-1 text-xs text-foreground hover:bg-foreground/5"
+          className="cursor-pointer rounded-full border border-divider px-3 py-1 text-xs text-foreground hover:bg-foreground/5"
         >
           取消
         </button>

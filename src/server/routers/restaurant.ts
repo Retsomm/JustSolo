@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { router, publicProcedure } from "@/server/trpc";
 import {
+  pickRestaurantInputSchema,
   restaurantFilterInputSchema,
   searchRestaurantsInputSchema,
 } from "@/types/restaurant";
 import {
   getRestaurantById,
   getRestaurantMapMarkers,
+  pickRandomRestaurant,
   searchRestaurants,
 } from "@/server/services/restaurantSearchService";
 import { getRestaurantPlaceDetails } from "@/server/services/placeDetailsService";
@@ -23,6 +25,10 @@ export const restaurantRouter = router({
   mapMarkers: publicProcedure
     .input(restaurantFilterInputSchema)
     .query(({ input }) => getRestaurantMapMarkers(input)),
+
+  pickOne: publicProcedure
+    .input(pickRestaurantInputSchema)
+    .query(({ input }) => pickRandomRestaurant(input)),
 
   placeDetails: publicProcedure
     .input(z.object({ id: z.string() }))

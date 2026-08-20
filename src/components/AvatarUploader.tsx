@@ -126,7 +126,7 @@ const CropDialog = ({
         <button
           type="button"
           onClick={onCancel}
-          className="cursor-pointer rounded border border-foreground/15 bg-background px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5"
+          className="cursor-pointer rounded-full border border-divider bg-background px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5"
         >
           取消
         </button>
@@ -134,7 +134,7 @@ const CropDialog = ({
           type="button"
           disabled={isPending}
           onClick={onConfirm}
-          className="cursor-pointer rounded bg-foreground px-3 py-1.5 text-sm text-background disabled:opacity-50"
+          className="cursor-pointer rounded-full bg-accent px-3 py-1.5 text-sm text-background disabled:opacity-50"
         >
           確認
         </button>
@@ -213,7 +213,7 @@ export const AvatarUploader = () => {
           className="h-16 w-16 rounded-full object-cover"
         />
       ) : (
-        <UserIcon className="h-16 w-16 shrink-0 rounded-full border border-foreground/15 p-3 text-foreground/60" />
+        <UserIcon className="h-16 w-16 shrink-0 rounded-full border border-divider p-3 text-foreground/60" />
       )}
 
       <input
@@ -228,7 +228,7 @@ export const AvatarUploader = () => {
         ref={uploadButtonRef}
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="cursor-pointer rounded border border-foreground/15 px-3 py-1.5 text-xs text-foreground hover:bg-foreground/5"
+        className="cursor-pointer rounded-full border border-divider px-3 py-1.5 text-xs text-foreground hover:bg-foreground/5"
       >
         上傳大頭貼
       </button>

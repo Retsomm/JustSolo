@@ -29,9 +29,9 @@ export const RestaurantDetailView = ({ id }: RestaurantDetailViewProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-6 pb-6 pt-20">
-      <Link href="/" className="text-sm text-foreground/70 hover:underline">
-        ← 回搜尋結果
+    <main className="mx-auto flex w-full max-w-140 flex-col gap-4 px-4 pb-8 pt-20">
+      <Link href="/" className="text-sm text-accent hover:underline">
+        ← 換一家
       </Link>
 
       {isLoading && <p className="text-sm text-foreground/70">載入中…</p>}
@@ -46,25 +46,25 @@ export const RestaurantDetailView = ({ id }: RestaurantDetailViewProps) => {
 
       {data && (
         <>
-          <article className="flex flex-col gap-2">
-            <div className="flex items-start justify-between gap-2">
-              <h1 className="min-w-0 flex-1 text-xl font-bold text-foreground">
+          <article className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="font-heading text-2xl text-foreground">
                 {data.name}
               </h1>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="text-xs text-foreground/60">
-                  {data.categoryName}
-                </span>
-                <FavoriteButton restaurantId={data.id} />
-              </div>
+              <p className="mt-1 text-sm text-foreground/70">{data.categoryName}</p>
+              <p className="mt-2 text-sm text-foreground">{data.address}</p>
+              {data.phone && (
+                <p className="text-sm text-foreground">電話：{data.phone}</p>
+              )}
             </div>
-            <p className="text-sm text-foreground">{data.address}</p>
-            {data.phone && (
-              <p className="text-sm text-foreground">電話：{data.phone}</p>
-            )}
+            <FavoriteButton restaurantId={data.id} />
           </article>
 
-          <div role="tablist" aria-label="餐廳詳情分類" className="flex flex-wrap gap-2">
+          <div
+            role="tablist"
+            aria-label="餐廳詳情分類"
+            className="flex overflow-hidden rounded-full border border-divider"
+          >
             {TABS.map((tab) => (
               <button
                 key={tab.key}
@@ -74,8 +74,8 @@ export const RestaurantDetailView = ({ id }: RestaurantDetailViewProps) => {
                 onClick={() => setActiveTab(tab.key)}
                 className={
                   activeTab === tab.key
-                    ? "rounded bg-foreground px-3 py-1 text-sm text-background"
-                    : "rounded border border-foreground/15 px-3 py-1 text-sm text-foreground hover:bg-foreground/5"
+                    ? "flex-1 bg-accent px-3 py-1.5 text-sm text-background"
+                    : "flex-1 px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5"
                 }
               >
                 {tab.label}
@@ -84,20 +84,22 @@ export const RestaurantDetailView = ({ id }: RestaurantDetailViewProps) => {
           </div>
 
           {activeTab === "soloFriendly" ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-foreground">
-                {soloSeatStatusLabel(data.soloSeatStatus)}
-                {data.soloSeatType ? `・${data.soloSeatType}` : ""}
-              </p>
-              <div>
-                <FriendlinessBadge
-                  score={data.soloFriendlinessScore}
-                  label={data.soloFriendlinessLabel}
-                />
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2 rounded-3xl border border-divider bg-surface p-4">
+                <p className="text-sm text-foreground">
+                  {soloSeatStatusLabel(data.soloSeatStatus)}
+                  {data.soloSeatType ? `・${data.soloSeatType}` : ""}
+                </p>
+                <div>
+                  <FriendlinessBadge
+                    score={data.soloFriendlinessScore}
+                    label={data.soloFriendlinessLabel}
+                  />
+                </div>
+                {data.reportCount > 0 && (
+                  <p className="text-sm text-foreground/70">{`單人座位信心：${Math.round(data.soloSeatConfidence * 100)}%（${data.reportCount} 則回報）`}</p>
+                )}
               </div>
-              {data.reportCount > 0 && (
-                <p className="text-sm text-foreground/70">{`單人座位信心：${Math.round(data.soloSeatConfidence * 100)}%（${data.reportCount} 則回報）`}</p>
-              )}
               <SoloSeatReportForm restaurantId={data.id} />
             </div>
           ) : (

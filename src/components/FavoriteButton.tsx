@@ -22,7 +22,7 @@ export const FavoriteButton = ({ restaurantId }: FavoriteButtonProps) => {
         type="button"
         disabled
         aria-label="收藏狀態載入中"
-        className="cursor-not-allowed rounded border border-foreground/15 p-2 text-foreground/60 opacity-50"
+        className="cursor-not-allowed rounded-full border border-divider p-2 text-foreground/60 opacity-50"
       >
         <HeartOutlineIcon className="h-5 w-5" />
       </button>
@@ -35,7 +35,7 @@ export const FavoriteButton = ({ restaurantId }: FavoriteButtonProps) => {
         type="button"
         onClick={() => signIn("google")}
         aria-label="登入後即可收藏"
-        className="cursor-pointer rounded border border-foreground/15 p-2 text-foreground/60 hover:bg-foreground/5"
+        className="cursor-pointer rounded-full border border-divider p-2 text-foreground/60 hover:bg-foreground/5"
       >
         <HeartOutlineIcon className="h-5 w-5" />
       </button>
@@ -61,10 +61,14 @@ export const FavoriteButton = ({ restaurantId }: FavoriteButtonProps) => {
       disabled={toggleFavorite.isPending || isFavorited === undefined}
       aria-pressed={isFavorited === true}
       aria-label={isFavorited ? "取消收藏" : "加入收藏"}
-      className="cursor-pointer rounded border border-foreground/15 p-2 text-foreground hover:bg-foreground/5 disabled:opacity-50"
+      className={`cursor-pointer rounded-full border p-2 text-foreground hover:bg-foreground/5 disabled:opacity-50 ${
+        isFavorited
+          ? "border-(--color-accent-300) bg-(--color-accent-100)"
+          : "border-divider"
+      }`}
     >
       {isFavorited ? (
-        <HeartFilledIcon className="h-5 w-5" />
+        <HeartFilledIcon className="h-5 w-5 text-accent" />
       ) : (
         <HeartOutlineIcon className="h-5 w-5" />
       )}

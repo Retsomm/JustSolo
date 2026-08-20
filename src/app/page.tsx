@@ -1,183 +1,289 @@
 "use client";
 
 import { useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCategories } from "@/hooks/useCategories";
 import { useDistricts } from "@/hooks/useDistricts";
+import { useRestaurantPick } from "@/hooks/useRestaurantPick";
 import { useRestaurantSearch } from "@/hooks/useRestaurantSearch";
-import { useRestaurantMapMarkers } from "@/hooks/useRestaurantMapMarkers";
+import { useRestaurantPlaceDetails } from "@/hooks/useRestaurantPlaceDetails";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { soloSeatStatusLabel } from "@/lib/soloSeatLabel";
+import { buildPlacePhotoProxyUrl } from "@/lib/placePhotoUrl";
 import { Pagination } from "@/components/Pagination";
 import { FriendlinessBadge } from "@/components/FriendlinessBadge";
 import { FavoriteButton } from "@/components/FavoriteButton";
 
-// Leaflet 存取 window，SSR 階段會噴錯，動態載入並關掉 ssr。
-const RestaurantMap = dynamic(
-  () => import("@/components/RestaurantMap").then((mod) => mod.RestaurantMap),
-  { ssr: false },
-);
-
 const CITY = "台中市";
 const SEARCH_DEBOUNCE_MS = 300;
+const HERO_PHOTO_WIDTH_PX = 640;
 
-type View = "list" | "map";
+const FilterIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M22 3H2l8 9.46V19l4 2v-8.54z" />
+  </svg>
+);
+
+const ShuffleIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M3 12a9 9 0 1 0 2.83-6.36L3 8" />
+    <path d="M3 3v5h5" />
+  </svg>
+);
 
 export default function Home() {
   const [category, setCategory] = useState<string | undefined>(undefined);
   const [district, setDistrict] = useState<string | undefined>(undefined);
   const [keywordInput, setKeywordInput] = useState("");
   const [soloSeatOnly, setSoloSeatOnly] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
+  const [excludedIds, setExcludedIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
-  const [view, setView] = useState<View>("list");
 
   const debouncedKeyword = useDebouncedValue(keywordInput, SEARCH_DEBOUNCE_MS);
 
   const { data: categories } = useCategories();
   const { data: districts } = useDistricts();
-  const { data, isLoading } = useRestaurantSearch({
+
+  const filterInput = {
     category,
     district,
     keyword: debouncedKeyword || undefined,
     city: CITY,
     soloSeatOnly,
-    page,
+  };
+
+  const { data: pick, isLoading: isPickLoading } = useRestaurantPick({
+    ...filterInput,
+    excludeIds: excludedIds,
   });
-  const { data: mapMarkers, isLoading: isMapLoading } = useRestaurantMapMarkers(
-    {
-      category,
-      district,
-      keyword: debouncedKeyword || undefined,
-      city: CITY,
-      soloSeatOnly,
-    },
-    { enabled: view === "map" },
+  const current = pick?.restaurant ?? null;
+
+  const { data: placeDetails } = useRestaurantPlaceDetails(current?.id ?? "", {
+    enabled: !!current,
+  });
+  const heroPhoto = placeDetails?.photos[0];
+
+  const { data: list, isLoading: isListLoading } = useRestaurantSearch(
+    { ...filterInput, page },
+    { enabled: listOpen },
   );
 
-  const restaurants = data?.items ?? [];
+  const resetPick = () => {
+    setExcludedIds([]);
+    setPage(1);
+  };
 
   const handleCategoryChange = (value: string) => {
     setCategory(value || undefined);
-    setPage(1);
+    resetPick();
   };
 
   const handleDistrictChange = (value: string) => {
     setDistrict(value || undefined);
-    setPage(1);
+    resetPick();
   };
 
   const handleKeywordChange = (value: string) => {
     setKeywordInput(value);
-    setPage(1);
+    resetPick();
   };
 
   const handleSoloSeatOnlyChange = (checked: boolean) => {
     setSoloSeatOnly(checked);
-    setPage(1);
+    resetPick();
+  };
+
+  const handleShuffle = () => {
+    if (current) setExcludedIds((prev) => [...prev, current.id]);
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 pb-6 pt-20">
-      <p className="text-sm text-foreground/60">
-        幫你找到{CITY}真的有單人座位的餐廳
+    <main className="mx-auto flex w-full max-w-140 flex-col items-center gap-4 px-4 pb-8 pt-20 text-center">
+      <p className="text-sm text-foreground/70">
+        今天，想一個人去哪裡吃？一次只推薦一家，慢慢挑。
       </p>
 
-      <input
-        type="text"
-        value={keywordInput}
-        onChange={(event) => handleKeywordChange(event.target.value)}
-        placeholder="搜尋店名"
-        aria-label="搜尋店名"
-        className="rounded border border-foreground/15 bg-background px-3 py-2 text-sm text-foreground"
-      />
+      <button
+        type="button"
+        onClick={() => setFilterOpen((v) => !v)}
+        className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-accent hover:underline"
+      >
+        <FilterIcon />
+        篩選條件
+      </button>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-sm">
-          分類
-          <select
-            value={category ?? ""}
-            onChange={(event) => handleCategoryChange(event.target.value)}
-            className="rounded border border-foreground/15 bg-background px-2 py-1 text-foreground"
-          >
-            <option value="">全部</option>
-            {categories?.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      {filterOpen && (
+        <div className="flex w-full flex-col gap-3 rounded-3xl border border-divider bg-surface p-4 text-left">
+          <label className="flex flex-col gap-1 text-sm">
+            搜尋店名
+            <input
+              type="text"
+              value={keywordInput}
+              onChange={(event) => handleKeywordChange(event.target.value)}
+              placeholder="例如：砂鍋粥"
+              aria-label="搜尋店名"
+              className="rounded-full border border-divider bg-background px-3 py-2 text-sm text-foreground"
+            />
+          </label>
 
-        <label className="flex items-center gap-2 text-sm">
-          行政區
-          <select
-            value={district ?? ""}
-            onChange={(event) => handleDistrictChange(event.target.value)}
-            className="rounded border border-foreground/15 bg-background px-2 py-1 text-foreground"
-          >
-            <option value="">全部</option>
-            {districts?.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </label>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex flex-1 flex-col gap-1 text-sm">
+              分類
+              <select
+                value={category ?? ""}
+                onChange={(event) => handleCategoryChange(event.target.value)}
+                className="rounded-full border border-divider bg-background px-3 py-2 text-foreground"
+              >
+                <option value="">全部</option>
+                {categories?.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={soloSeatOnly}
-            onChange={(event) => handleSoloSeatOnlyChange(event.target.checked)}
-          />
-          僅顯示有單人座位
-        </label>
-      </div>
+            <label className="flex flex-1 flex-col gap-1 text-sm">
+              行政區
+              <select
+                value={district ?? ""}
+                onChange={(event) => handleDistrictChange(event.target.value)}
+                className="rounded-full border border-divider bg-background px-3 py-2 text-foreground"
+              >
+                <option value="">全部</option>
+                {districts?.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
-      <div className="flex gap-2" role="group" aria-label="切換檢視模式">
-        <button
-          type="button"
-          onClick={() => setView("list")}
-          aria-pressed={view === "list"}
-          className={
-            view === "list"
-              ? "rounded bg-foreground px-3 py-1 text-sm text-background"
-              : "rounded border border-foreground/15 px-3 py-1 text-sm text-foreground hover:bg-foreground/5"
-          }
-        >
-          列表
-        </button>
-        <button
-          type="button"
-          onClick={() => setView("map")}
-          aria-pressed={view === "map"}
-          className={
-            view === "map"
-              ? "rounded bg-foreground px-3 py-1 text-sm text-background"
-              : "rounded border border-foreground/15 px-3 py-1 text-sm text-foreground hover:bg-foreground/5"
-          }
-        >
-          地圖
-        </button>
-      </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={soloSeatOnly}
+              onChange={(event) => handleSoloSeatOnlyChange(event.target.checked)}
+              className="accent-accent"
+            />
+            僅顯示有單人座位
+          </label>
+        </div>
+      )}
 
-      {view === "list" && (
+      {isPickLoading && <p className="text-sm text-foreground/60">搜尋中…</p>}
+
+      {!isPickLoading && current && (
         <>
-          {isLoading && <p className="text-sm text-foreground/60">搜尋中…</p>}
+          <div className="w-full overflow-hidden rounded-3xl border border-divider bg-surface text-left">
+            <div className="h-52 w-full bg-foreground/10">
+              {heroPhoto ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={buildPlacePhotoProxyUrl(heroPhoto.name, HERO_PHOTO_WIDTH_PX)}
+                  alt={`${current.name} 照片`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-sm text-foreground/40">
+                  尚無照片
+                </div>
+              )}
+            </div>
+            <div className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="min-w-0 flex-1 font-heading text-xl text-foreground">
+                  {current.name}
+                </h2>
+                <FriendlinessBadge
+                  score={current.soloFriendlinessScore}
+                  label={current.soloFriendlinessLabel}
+                />
+              </div>
+              <p className="mt-1 text-sm text-foreground/70">
+                {current.categoryName} · {current.address}
+              </p>
+              <p className="mt-1 text-sm text-foreground">
+                {soloSeatStatusLabel(current.soloSeatStatus)}
+              </p>
+              <div className="mt-2 flex justify-end">
+                <FavoriteButton restaurantId={current.id} />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-center gap-3">
+            <button
+              type="button"
+              onClick={handleShuffle}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-divider px-4 py-1.5 text-sm text-foreground hover:bg-foreground/5"
+            >
+              <ShuffleIcon />
+              換一家
+            </button>
+            <Link
+              href={`/restaurant/${current.id}`}
+              className="rounded-full bg-accent px-4 py-1.5 text-sm text-background hover:bg-(--color-accent-600)"
+            >
+              前往看看
+            </Link>
+          </div>
+        </>
+      )}
+
+      {!isPickLoading && !current && (
+        <p className="text-sm text-foreground/60">
+          目前沒有符合條件的餐廳，換個篩選條件試試？
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setListOpen((v) => !v)}
+        className="mt-4 cursor-pointer text-sm text-accent hover:underline"
+      >
+        {listOpen ? "收起完整列表" : `或查看完整列表（${pick?.totalCount ?? 0} 家）`}
+      </button>
+
+      {listOpen && (
+        <div className="flex w-full flex-col gap-3 text-left">
+          {isListLoading && <p className="text-sm text-foreground/60">載入中…</p>}
 
           <ul className="flex flex-col gap-3">
-            {restaurants.map((r) => (
+            {list?.items.map((r) => (
               <li
-                className="rounded border border-foreground/10 hover:bg-foreground/5"
                 key={r.id}
+                className="rounded-3xl border border-divider bg-surface hover:bg-foreground/5"
               >
                 <div className="p-4">
                   <Link href={`/restaurant/${r.id}`} className="block">
                     <div className="flex items-start justify-between gap-2">
-                      <h2 className="min-w-0 flex-1 font-semibold text-foreground">
+                      <h3 className="min-w-0 flex-1 font-semibold text-foreground">
                         {r.name}
-                      </h2>
+                      </h3>
                       <span className="shrink-0 text-xs text-foreground/50">
                         {r.categoryName}
                       </span>
@@ -200,27 +306,20 @@ export default function Home() {
             ))}
           </ul>
 
-          {!isLoading && restaurants.length === 0 && (
+          {!isListLoading && list?.items.length === 0 && (
             <p className="text-sm text-foreground/60">
               目前沒有符合條件的餐廳，換個篩選條件試試？
             </p>
           )}
 
-          {data && (
+          {list && (
             <Pagination
-              page={data.page}
-              totalPages={data.totalPages}
+              page={list.page}
+              totalPages={list.totalPages}
               onPageChange={setPage}
             />
           )}
-        </>
-      )}
-
-      {view === "map" && (
-        <>
-          {isMapLoading && <p className="text-sm text-foreground/60">地圖載入中…</p>}
-          <RestaurantMap restaurants={mapMarkers ?? []} />
-        </>
+        </div>
       )}
     </main>
   );

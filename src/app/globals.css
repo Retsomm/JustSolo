@@ -1,42 +1,94 @@
 @import "tailwindcss";
 
-/* 淺色主題預設值：米色/大地色系，刻意不用死白色。 */
+/* 「Organic」設計系統色階，原樣搬自 ui-app/project/_ds/.../styles.css。
+   只有淺色主題會用到完整色階；深色主題的 --background/--foreground/--surface/
+   --divider 比照 ui-app/project/App.dc.html 手機版原型的 JS 邏輯
+   （dark ? neutral-900/100/800/700 : color-bg/text/surface/neutral-300）。
+   這些 ramp 不隨主題切換翻轉，component 裡用 Tailwind 任意值語法
+  （例如 bg-[var(--color-accent-100)]）取用，不特別另外註冊成 @theme utility。 */
 :root {
-  --background: #f3ebd8;
-  --foreground: #4a3c2c;
-  --success: #2f7a3d;
+  --color-neutral-100: #f9f4ed;
+  --color-neutral-200: #eee7db;
+  --color-neutral-300: #dcd3c4;
+  --color-neutral-400: #c0b6a5;
+  --color-neutral-500: #a19786;
+  --color-neutral-600: #82796a;
+  --color-neutral-700: #645c50;
+  --color-neutral-800: #474238;
+  --color-neutral-900: #2e2b25;
+
+  --color-accent-100: #fff2eb;
+  --color-accent-200: #ffe1d0;
+  --color-accent-300: #ffc6a5;
+  --color-accent-400: #f6a06b;
+  --color-accent-500: #d67f48;
+  --color-accent-600: #b2622d;
+  --color-accent-700: #8c491a;
+  --color-accent-800: #643312;
+  --color-accent-900: #402310;
+
+  --color-accent-2-100: #f0fae1;
+  --color-accent-2-200: #e1eecc;
+  --color-accent-2-300: #ccdbb2;
+  --color-accent-2-400: #aebf92;
+  --color-accent-2-500: #8fa073;
+  --color-accent-2-600: #728157;
+  --color-accent-2-700: #56633f;
+  --color-accent-2-800: #3d472b;
+  --color-accent-2-900: #272e1b;
+}
+
+/* 淺色主題預設值：米色/陶土色系，比照設計稿的 --color-bg/--color-text/
+   --color-surface/--color-accent/--color-accent-2。 */
+:root {
+  --background: #f5ead8;
+  --foreground: #201e1d;
+  --surface: #ebddc5;
+  --accent: #c67139;
+  --accent-2: #7a8a5e;
+  --divider: var(--color-neutral-300);
+  --success: var(--color-accent-2-700);
   --danger: #b3401f;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-divider: var(--divider);
   --color-success: var(--success);
   --color-danger: var(--danger);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-figtree);
+  --font-heading: var(--font-caprasimo);
+  --font-body: var(--font-figtree);
 }
 
 /* 使用者沒有手動選過主題（沒有 data-theme="light"）時，跟隨系統深色模式偏好。 */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --success: #4ade80;
+    --background: var(--color-neutral-900);
+    --foreground: var(--color-neutral-100);
+    --surface: var(--color-neutral-800);
+    --divider: var(--color-neutral-700);
+    --success: var(--color-accent-2-300);
     --danger: #f0733d;
   }
 }
 
 /* 使用者手動選過深色主題時，不管系統偏好是什麼都套用深色。 */
 :root[data-theme="dark"] {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --success: #4ade80;
+  --background: var(--color-neutral-900);
+  --foreground: var(--color-neutral-100);
+  --surface: var(--color-neutral-800);
+  --divider: var(--color-neutral-700);
+  --success: var(--color-accent-2-300);
   --danger: #f0733d;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
 }

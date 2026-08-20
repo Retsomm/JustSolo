@@ -34,8 +34,24 @@ vi.mock("react-leaflet-cluster", () => ({
 }));
 
 const markers: RestaurantMapMarker[] = [
-  { id: "r1", name: "測試燒肉店", lat: 24.15, lng: 120.68, soloSeatStatus: "CONFIRMED_YES" },
-  { id: "r2", name: "測試拉麵店", lat: 24.16, lng: 120.69, soloSeatStatus: "UNKNOWN" },
+  {
+    id: "r1",
+    name: "測試燒肉店",
+    categoryName: "燒肉",
+    address: "台中市某路 1 號",
+    lat: 24.15,
+    lng: 120.68,
+    soloSeatStatus: "CONFIRMED_YES",
+  },
+  {
+    id: "r2",
+    name: "測試拉麵店",
+    categoryName: "拉麵",
+    address: "台中市某路 2 號",
+    lat: 24.16,
+    lng: 120.69,
+    soloSeatStatus: "UNKNOWN",
+  },
 ];
 
 describe("RestaurantMap", () => {
