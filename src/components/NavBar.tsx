@@ -1,8 +1,10 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { resolveTheme, toggleTheme, THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
 import { MoonIcon, SunIcon } from "@/components/icons/ThemeIcons";
+import { UserIcon } from "@/components/icons/AuthIcons";
 
 const getStoredTheme = (): string | null => {
   try {
@@ -10,6 +12,41 @@ const getStoredTheme = (): string | null => {
   } catch {
     return null;
   }
+};
+
+const AuthButton = () => {
+  const { data: session, status } = useSession();
+
+  if (status === "loading") return null;
+
+  if (status === "authenticated") {
+    const label = session.user?.name ?? session.user?.email ?? "";
+    return (
+      <div className="flex items-center gap-1.5">
+        <UserIcon className="h-4 w-4 shrink-0 text-foreground/60" />
+        <span className="max-w-24 truncate text-sm text-foreground">
+          {label}
+        </span>
+        <button
+          type="button"
+          onClick={() => signOut()}
+          className="cursor-pointer rounded border border-foreground/15 px-2 py-1 text-xs text-foreground hover:bg-foreground/5"
+        >
+          登出
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => signIn("google")}
+      className="cursor-pointer rounded border border-foreground/15 px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5"
+    >
+      登入
+    </button>
+  );
 };
 
 export const NavBar = () => {
@@ -66,18 +103,21 @@ export const NavBar = () => {
     <nav className="fixed inset-x-0 top-0 z-20 h-14 border-b border-foreground/10 bg-background">
       <div className="mx-auto flex h-full w-full max-w-2xl items-center justify-between px-6">
         <span className="text-lg font-bold text-foreground">JustSolo</span>
-        <button
-          type="button"
-          onClick={handleToggle}
-          aria-label={theme === "dark" ? "切換成淺色主題" : "切換成深色主題"}
-          className="cursor-pointer rounded border border-foreground/15 p-2 text-foreground hover:bg-foreground/5"
-        >
-          {theme === "dark" ? (
-            <MoonIcon className="h-4 w-4" />
-          ) : (
-            <SunIcon className="h-4 w-4" />
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <AuthButton />
+          <button
+            type="button"
+            onClick={handleToggle}
+            aria-label={theme === "dark" ? "切換成淺色主題" : "切換成深色主題"}
+            className="cursor-pointer rounded border border-foreground/15 p-2 text-foreground hover:bg-foreground/5"
+          >
+            {theme === "dark" ? (
+              <MoonIcon className="h-4 w-4" />
+            ) : (
+              <SunIcon className="h-4 w-4" />
+            )}
+          </button>
+        </div>
       </div>
     </nav>
   );

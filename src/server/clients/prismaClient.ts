@@ -1,6 +1,10 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
-import type { RestaurantDetail, RestaurantSearchResult } from "@/types/restaurant";
+import type {
+  RestaurantDetail,
+  RestaurantSearchResult,
+  SoloSeatStatus,
+} from "@/types/restaurant";
 import type { CategoryOption } from "@/types/category";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
@@ -56,7 +60,7 @@ export const findRestaurantById = async (
 ): Promise<RestaurantDetail | null> => {
   const restaurant = await getPrisma().restaurant.findUnique({
     where: { id },
-    include: { category: true },
+    include: { category: true, _count: { select: { reports: true } } },
   });
 
   if (!restaurant) return null;
@@ -72,6 +76,8 @@ export const findRestaurantById = async (
     lng: restaurant.lng,
     soloSeatStatus: restaurant.soloSeatStatus,
     soloSeatType: restaurant.soloSeatType,
+    soloSeatConfidence: restaurant.soloSeatConfidence,
+    reportCount: restaurant._count.reports,
     phone: restaurant.phone,
   };
 };
@@ -137,3 +143,62 @@ export const upsertRestaurantByPlaceId = (data: RestaurantUpsertInput) =>
       categoryId: data.categoryId,
     },
   });
+
+export const upsertUserByEmail = async (input: {
+  email: string;
+  name: string | null;
+  image: string | null;
+}): Promise<{ id: string }> =>
+  getPrisma().user.upsert({
+    where: { email: input.email },
+    update: { name: input.name, image: input.image },
+    create: { email: input.email, name: input.name, image: input.image },
+    select: { id: true },
+  });
+
+// 寫入回報、重算信心分數、寫回 Restaurant 三個步驟包在同一個 transaction 裡，
+// 並用 `SELECT ... FOR UPDATE` 鎖住該餐廳的 Restaurant row，序列化同一間店的
+// 並行回報，避免兩個使用者同時回報時，後寫入的 aggregate 蓋掉先寫入的結果。
+export const submitSoloSeatReportTransaction = async (input: {
+  restaurantId: string;
+  userId: string;
+  reportType: SoloSeatStatus;
+  note: string | null;
+  computeStatus: (
+    reportTypes: SoloSeatStatus[],
+  ) => { status: SoloSeatStatus; confidence: number };
+}): Promise<void> => {
+  await getPrisma().$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM "Restaurant" WHERE id = ${input.restaurantId} FOR UPDATE`;
+
+    await tx.soloSeatReport.upsert({
+      where: {
+        restaurantId_userId: {
+          restaurantId: input.restaurantId,
+          userId: input.userId,
+        },
+      },
+      update: { reportType: input.reportType, note: input.note },
+      create: {
+        restaurantId: input.restaurantId,
+        userId: input.userId,
+        reportType: input.reportType,
+        note: input.note,
+      },
+    });
+
+    const reports = await tx.soloSeatReport.findMany({
+      where: { restaurantId: input.restaurantId },
+      select: { reportType: true },
+    });
+
+    const { status, confidence } = input.computeStatus(
+      reports.map((r) => r.reportType),
+    );
+
+    await tx.restaurant.update({
+      where: { id: input.restaurantId },
+      data: { soloSeatStatus: status, soloSeatConfidence: confidence },
+    });
+  });
+};

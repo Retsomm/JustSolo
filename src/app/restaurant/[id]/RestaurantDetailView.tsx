@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRestaurantDetail } from "@/hooks/useRestaurantDetail";
 import { soloSeatStatusLabel } from "@/lib/soloSeatLabel";
+import { SoloSeatReportForm } from "@/components/SoloSeatReportForm";
 
 type RestaurantDetailViewProps = {
   id: string;
@@ -43,8 +44,13 @@ export const RestaurantDetailView = ({ id }: RestaurantDetailViewProps) => {
             {soloSeatStatusLabel(data.soloSeatStatus)}
             {data.soloSeatType ? `・${data.soloSeatType}` : ""}
           </p>
+          {data.reportCount > 0 && (
+            <p className="text-sm text-foreground/70">{`單人座位信心：${Math.round(data.soloSeatConfidence * 100)}%（${data.reportCount} 則回報）`}</p>
+          )}
         </article>
       )}
+
+      {data && <SoloSeatReportForm restaurantId={data.id} />}
     </main>
   );
 };

@@ -3,8 +3,17 @@ import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { hydrateRoot } from "react-dom/client";
+import { useSession, signIn, signOut } from "next-auth/react";
 import { NavBar } from "@/components/NavBar";
 import { THEME_STORAGE_KEY } from "@/lib/theme";
+
+vi.mock("next-auth/react", () => ({
+  useSession: vi.fn(),
+  signIn: vi.fn(),
+  signOut: vi.fn(),
+}));
+
+const mockedUseSession = vi.mocked(useSession);
 
 let changeListener: ((event: MediaQueryListEvent) => void) | null = null;
 
@@ -26,6 +35,10 @@ beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
   mockMatchMedia(false);
+  mockedUseSession.mockReturnValue({
+    data: null,
+    status: "unauthenticated",
+  } as unknown as ReturnType<typeof useSession>);
 });
 
 afterEach(() => {
@@ -164,5 +177,45 @@ describe("NavBar 系統偏好變化訂閱", () => {
     unmount();
 
     expect(changeListener).toBeNull();
+  });
+});
+
+describe("NavBar 登入/登出", () => {
+  it("未登入時顯示登入按鈕，點擊會呼叫 signIn(\"google\")", async () => {
+    mockedUseSession.mockReturnValue({
+      data: null,
+      status: "unauthenticated",
+    } as unknown as ReturnType<typeof useSession>);
+
+    render(<NavBar />);
+    await userEvent.click(screen.getByRole("button", { name: "登入" }));
+
+    expect(signIn).toHaveBeenCalledWith("google");
+  });
+
+  it("已登入時顯示使用者名稱與登出按鈕，點擊會呼叫 signOut", async () => {
+    mockedUseSession.mockReturnValue({
+      data: { user: { name: "小明", email: "ming@example.com" } },
+      status: "authenticated",
+    } as unknown as ReturnType<typeof useSession>);
+
+    render(<NavBar />);
+    expect(screen.getByText("小明")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "登出" }));
+
+    expect(signOut).toHaveBeenCalled();
+  });
+
+  it("loading 狀態時不渲染登入/登出按鈕", () => {
+    mockedUseSession.mockReturnValue({
+      data: null,
+      status: "loading",
+    } as unknown as ReturnType<typeof useSession>);
+
+    render(<NavBar />);
+
+    expect(screen.queryByRole("button", { name: "登入" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "登出" })).not.toBeInTheDocument();
   });
 });

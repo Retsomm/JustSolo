@@ -57,4 +57,6 @@ export type PaginatedRestaurants = {
 
 export type RestaurantDetail = RestaurantSearchResult & {
   phone: string | null;
+  soloSeatConfidence: number;
+  reportCount: number;
 };
