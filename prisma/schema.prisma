@@ -38,6 +38,7 @@ model Restaurant {
   soloSeatType       String? // 例：吧台單人座 / 一人套餐 / 單人小桌
   soloSeatConfidence Float            @default(0) // 由 SoloSeatReport 聚合算出，MVP 先固定 0
   reports            SoloSeatReport[]
+  favorites          Favorite[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -52,6 +53,21 @@ model User {
   image     String?
   createdAt DateTime         @default(now())
   reports   SoloSeatReport[]
+  favorites Favorite[]
+}
+
+// 使用者的收藏清單，一人一店最多一筆（重複收藏視為 no-op）。
+model Favorite {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, restaurantId])
+  @@index([userId])
+  @@index([restaurantId])
 }
 
 // 一人一店一票：同一使用者對同一間店重複回報會覆寫，不會疊加洗分數

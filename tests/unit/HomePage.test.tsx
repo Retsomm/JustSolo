@@ -20,6 +20,11 @@ vi.mock("@/components/RestaurantMap", () => ({
     <div data-testid="restaurant-map-mock">地圖 marker 數：{restaurants.length}</div>
   ),
 }));
+// 收藏按鈕本身有自己的測試（FavoriteButton.test.tsx），這裡用 stub 避免要另外準備
+// SessionProvider/tRPC Provider。
+vi.mock("@/components/FavoriteButton", () => ({
+  FavoriteButton: () => null,
+}));
 
 const mockedUseCategories = vi.mocked(useCategories);
 const mockedUseDistricts = vi.mocked(useDistricts);

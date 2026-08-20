@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPaginationItems, paginate } from "@/lib/pagination";
+import { buildPaginationItems, paginate, resolvePageWindow } from "@/lib/pagination";
 
 describe("buildPaginationItems", () => {
   it("只有 1 頁時只顯示 1", () => {
@@ -77,6 +77,35 @@ describe("paginate", () => {
       pageSize: 10,
       totalCount: 0,
       totalPages: 1,
+    });
+  });
+});
+
+describe("resolvePageWindow", () => {
+  it("回傳 skip 偏移量與分頁中繼資料", () => {
+    expect(resolvePageWindow(25, 2, 10)).toEqual({
+      page: 2,
+      pageSize: 10,
+      totalPages: 3,
+      skip: 10,
+    });
+  });
+
+  it("page 超過 totalPages 時夾回最後一頁", () => {
+    expect(resolvePageWindow(25, 99, 10)).toEqual({
+      page: 3,
+      pageSize: 10,
+      totalPages: 3,
+      skip: 20,
+    });
+  });
+
+  it("沒有資料時 totalPages 至少是 1，skip 為 0", () => {
+    expect(resolvePageWindow(0, 1, 10)).toEqual({
+      page: 1,
+      pageSize: 10,
+      totalPages: 1,
+      skip: 0,
     });
   });
 });

@@ -3,17 +3,22 @@ import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { hydrateRoot } from "react-dom/client";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { NavBar } from "@/components/NavBar";
 import { THEME_STORAGE_KEY } from "@/lib/theme";
 
 vi.mock("next-auth/react", () => ({
   useSession: vi.fn(),
   signIn: vi.fn(),
-  signOut: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  usePathname: vi.fn(),
 }));
 
 const mockedUseSession = vi.mocked(useSession);
+const mockedUsePathname = vi.mocked(usePathname);
 
 let changeListener: ((event: MediaQueryListEvent) => void) | null = null;
 
@@ -39,6 +44,7 @@ beforeEach(() => {
     data: null,
     status: "unauthenticated",
   } as unknown as ReturnType<typeof useSession>);
+  mockedUsePathname.mockReturnValue("/");
 });
 
 afterEach(() => {
@@ -180,7 +186,7 @@ describe("NavBar 系統偏好變化訂閱", () => {
   });
 });
 
-describe("NavBar 登入/登出", () => {
+describe("NavBar 登入", () => {
   it("未登入時顯示登入按鈕，點擊會呼叫 signIn(\"google\")", async () => {
     mockedUseSession.mockReturnValue({
       data: null,
@@ -193,21 +199,21 @@ describe("NavBar 登入/登出", () => {
     expect(signIn).toHaveBeenCalledWith("google");
   });
 
-  it("已登入時顯示使用者名稱與登出按鈕，點擊會呼叫 signOut", async () => {
+  it("已登入時不顯示名稱／登出按鈕（名稱已移除，登出移到個人頁面底部）", () => {
     mockedUseSession.mockReturnValue({
       data: { user: { name: "小明", email: "ming@example.com" } },
       status: "authenticated",
     } as unknown as ReturnType<typeof useSession>);
 
     render(<NavBar />);
-    expect(screen.getByText("小明")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "登出" }));
-
-    expect(signOut).toHaveBeenCalled();
+    expect(screen.queryByText("小明")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "登出" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("loading 狀態時不渲染登入/登出按鈕", () => {
+  it("loading 狀態時不渲染登入按鈕", () => {
     mockedUseSession.mockReturnValue({
       data: null,
       status: "loading",
@@ -216,6 +222,60 @@ describe("NavBar 登入/登出", () => {
     render(<NavBar />);
 
     expect(screen.queryByRole("button", { name: "登入" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "登出" })).not.toBeInTheDocument();
+  });
+});
+
+describe("NavBar 導覽連結", () => {
+  it("首頁連結一律顯示", () => {
+    render(<NavBar />);
+
+    expect(screen.getByRole("link", { name: "首頁" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+  });
+
+  it("未登入時，登入/個人頁面那個位置顯示「登入」按鈕，不是連結", () => {
+    render(<NavBar />);
+
+    expect(
+      screen.queryByRole("link", { name: "個人頁面" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "登入" })).toBeInTheDocument();
+  });
+
+  it("已登入時，同一個位置改顯示「個人頁面」連結，不是登入按鈕", () => {
+    mockedUseSession.mockReturnValue({
+      data: { user: { name: "小明" } },
+      status: "authenticated",
+    } as unknown as ReturnType<typeof useSession>);
+
+    render(<NavBar />);
+
+    expect(screen.getByRole("link", { name: "個人頁面" })).toHaveAttribute(
+      "href",
+      "/profile",
+    );
+    expect(
+      screen.queryByRole("button", { name: "登入" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("已登入且目前路徑是 /profile 時，個人頁面連結標示 aria-current=page，首頁連結沒有", () => {
+    mockedUseSession.mockReturnValue({
+      data: { user: { name: "小明" } },
+      status: "authenticated",
+    } as unknown as ReturnType<typeof useSession>);
+    mockedUsePathname.mockReturnValue("/profile");
+
+    render(<NavBar />);
+
+    expect(screen.getByRole("link", { name: "個人頁面" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(
+      screen.getByRole("link", { name: "首頁" }),
+    ).not.toHaveAttribute("aria-current");
   });
 });

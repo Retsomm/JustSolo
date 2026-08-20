@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRestaurantDetail } from "@/hooks/useRestaurantDetail";
 import { soloSeatStatusLabel } from "@/lib/soloSeatLabel";
 import { SoloSeatReportForm } from "@/components/SoloSeatReportForm";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { FriendlinessBadge } from "@/components/FriendlinessBadge";
 import { PlaceDetailsSection } from "@/components/PlaceDetailsSection";
 import type { PlaceDetailsTab } from "@/components/PlaceDetailsSection";
@@ -46,11 +47,16 @@ export const RestaurantDetailView = ({ id }: RestaurantDetailViewProps) => {
       {data && (
         <>
           <article className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <h1 className="text-xl font-bold text-foreground">{data.name}</h1>
-              <span className="shrink-0 text-xs text-foreground/60">
-                {data.categoryName}
-              </span>
+            <div className="flex items-start justify-between gap-2">
+              <h1 className="min-w-0 flex-1 text-xl font-bold text-foreground">
+                {data.name}
+              </h1>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-xs text-foreground/60">
+                  {data.categoryName}
+                </span>
+                <FavoriteButton restaurantId={data.id} />
+              </div>
             </div>
             <p className="text-sm text-foreground">{data.address}</p>
             {data.phone && (

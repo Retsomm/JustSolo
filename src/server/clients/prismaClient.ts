@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
+import { resolvePageWindow } from "@/lib/pagination";
 import type {
   RestaurantDetail,
   RestaurantSearchResult,
@@ -164,6 +165,80 @@ export const upsertRestaurantByPlaceId = (data: RestaurantUpsertInput) =>
     },
   });
 
+export const addFavorite = (userId: string, restaurantId: string) =>
+  getPrisma().favorite.upsert({
+    where: { userId_restaurantId: { userId, restaurantId } },
+    update: {},
+    create: { userId, restaurantId },
+  });
+
+export const removeFavorite = (userId: string, restaurantId: string) =>
+  getPrisma().favorite.deleteMany({ where: { userId, restaurantId } });
+
+export const findFavoriteByUserAndRestaurant = async (
+  userId: string,
+  restaurantId: string,
+): Promise<boolean> => {
+  const favorite = await getPrisma().favorite.findUnique({
+    where: { userId_restaurantId: { userId, restaurantId } },
+    select: { id: true },
+  });
+  return favorite !== null;
+};
+
+export type PaginatedFavoriteRestaurants = {
+  items: RestaurantSearchResult[];
+  totalCount: number;
+  page: number;
+  totalPages: number;
+};
+
+// 分頁直接在 DB 層做（skip/take + count），不像 searchRestaurants 得先把整批
+// 結果撈進記憶體才能切頁——那邊是因為要先依 Service 層算出的友善度分數排序，
+// 這裡只依 createdAt 排序（DB 排得動），收藏筆數多時不需要每次都整批撈回來。
+export const listFavoriteRestaurantsByUserId = async (
+  userId: string,
+  page: number,
+  pageSize: number,
+): Promise<PaginatedFavoriteRestaurants> => {
+  const totalCount = await getPrisma().favorite.count({ where: { userId } });
+  const { page: safePage, totalPages, skip } = resolvePageWindow(
+    totalCount,
+    page,
+    pageSize,
+  );
+
+  const favorites = await getPrisma().favorite.findMany({
+    where: { userId },
+    include: { restaurant: { include: { category: true } } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip,
+    take: pageSize,
+  });
+
+  return {
+    items: favorites.map(({ restaurant: r }) => ({
+      id: r.id,
+      name: r.name,
+      categoryName: r.category.name,
+      city: r.city,
+      district: r.district,
+      address: r.address,
+      lat: r.lat,
+      lng: r.lng,
+      soloSeatStatus: r.soloSeatStatus,
+      soloSeatType: r.soloSeatType,
+      soloSeatConfidence: r.soloSeatConfidence,
+    })),
+    totalCount,
+    page: safePage,
+    totalPages,
+  };
+};
+
+// update 故意留空：name/image 只在「第一次註冊」時採用 Google 的值當預設，
+// 之後使用者在個人頁面自己改過的名稱/大頭貼，不該被下一次登入時 Google 回傳的
+// profile 資料蓋掉——這兩個欄位之後只由 updateUserProfile（個人頁面）異動。
 export const upsertUserByEmail = async (input: {
   email: string;
   name: string | null;
@@ -171,9 +246,31 @@ export const upsertUserByEmail = async (input: {
 }): Promise<{ id: string }> =>
   getPrisma().user.upsert({
     where: { email: input.email },
-    update: { name: input.name, image: input.image },
+    update: {},
     create: { email: input.email, name: input.name, image: input.image },
     select: { id: true },
+  });
+
+export const updateUserProfile = (
+  userId: string,
+  data: { name?: string; image?: string },
+) =>
+  getPrisma().user.update({
+    where: { id: userId },
+    data,
+    select: { id: true },
+  });
+
+// 大頭貼是裁切後的 base64 data URL（見 imageCrop.ts），可能有數十 KB，
+// 絕對不能塞進 next-auth 的 session JWT／cookie（cookie 太大會讓瀏覽器對這個
+// origin 的「所有」請求都失敗，見 auth.ts 的說明）。現在的大頭貼只能透過這個
+// 函式直接查 DB 拿最新值，不透過 session。
+export const findUserProfileById = async (
+  userId: string,
+): Promise<{ name: string | null; image: string | null } | null> =>
+  getPrisma().user.findUnique({
+    where: { id: userId },
+    select: { name: true, image: true },
   });
 
 // 寫入回報、重算信心分數、寫回 Restaurant 三個步驟包在同一個 transaction 裡，
