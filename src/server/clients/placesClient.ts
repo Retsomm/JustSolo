@@ -90,30 +90,47 @@ export const parsePlacesResponse = (json: unknown): PlaceSearchPage => {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// 打 Google API 的逾時上限：避免單一請求卡住沒有回應時，整個匯入流程/請求
+// 無限期掛住，統一用 AbortSignal.timeout 設下限，逾時當成一般上游錯誤處理。
+// 也給圖片代理 route（place-photo）呼叫 Photo Media 端點時共用同一個上限。
+export const GOOGLE_API_TIMEOUT_MS = 10_000;
+
+export const isAbortError = (error: unknown): boolean =>
+  error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
+
 const fetchPlacesPage = async (
   query: string,
   pageToken: string | undefined,
   apiKey: string,
 ): Promise<PlaceSearchPage> => {
-  const response = await fetch(PLACES_TEXT_SEARCH_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": PLACES_FIELD_MASK,
-    },
-    body: JSON.stringify({
-      textQuery: query,
-      languageCode: "zh-TW",
-      locationRestriction: {
-        rectangle: {
-          low: { latitude: TAICHUNG_BOUNDS.south, longitude: TAICHUNG_BOUNDS.west },
-          high: { latitude: TAICHUNG_BOUNDS.north, longitude: TAICHUNG_BOUNDS.east },
-        },
+  let response: Response;
+  try {
+    response = await fetch(PLACES_TEXT_SEARCH_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": PLACES_FIELD_MASK,
       },
-      ...(pageToken ? { pageToken } : {}),
-    }),
-  });
+      body: JSON.stringify({
+        textQuery: query,
+        languageCode: "zh-TW",
+        locationRestriction: {
+          rectangle: {
+            low: { latitude: TAICHUNG_BOUNDS.south, longitude: TAICHUNG_BOUNDS.west },
+            high: { latitude: TAICHUNG_BOUNDS.north, longitude: TAICHUNG_BOUNDS.east },
+          },
+        },
+        ...(pageToken ? { pageToken } : {}),
+      }),
+      signal: AbortSignal.timeout(GOOGLE_API_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new Error("Google Places API 請求逾時");
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     throw new Error(
@@ -274,12 +291,21 @@ export const fetchPlaceDetails = async (
   const url = new URL(`${PLACE_DETAILS_URL}/${placeId}`);
   url.searchParams.set("languageCode", "zh-TW");
 
-  const response = await fetch(url, {
-    headers: {
-      "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": PLACE_DETAILS_FIELD_MASK,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": PLACE_DETAILS_FIELD_MASK,
+      },
+      signal: AbortSignal.timeout(GOOGLE_API_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new Error("Google Place Details API 請求逾時");
+    }
+    throw error;
+  }
 
   if (response.status === 404) return null;
 

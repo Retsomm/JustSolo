@@ -1,5 +1,7 @@
 import {
   buildPlacePhotoMediaUrl,
+  GOOGLE_API_TIMEOUT_MS,
+  isAbortError,
   isValidPlacePhotoName,
 } from "@/server/clients/placesClient";
 
@@ -8,7 +10,7 @@ const DEFAULT_MAX_WIDTH_PX = 800;
 // 圖片代理：前端只打這個 same-origin 路徑，Google API Key 留在伺服器端，
 // 不會外洩到瀏覽器。`name` 是使用者可控的 query 參數，組 Google 網址前
 // 一定要先驗證格式，避免變成任意網址代理（SSRF）的破口。
-export async function GET(request: Request) {
+export const GET = async (request: Request) => {
   const url = new URL(request.url);
   const name = url.searchParams.get("name");
   const maxWidthPx = Number(
@@ -29,7 +31,18 @@ export async function GET(request: Request) {
   }
 
   const mediaUrl = buildPlacePhotoMediaUrl(name, maxWidthPx, apiKey);
-  const googleResponse = await fetch(mediaUrl);
+
+  let googleResponse: Response;
+  try {
+    googleResponse = await fetch(mediaUrl, {
+      signal: AbortSignal.timeout(GOOGLE_API_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      return new Response("Upstream timeout", { status: 504 });
+    }
+    throw error;
+  }
 
   if (!googleResponse.ok) {
     return new Response("Photo not found", { status: 502 });
@@ -41,4 +54,4 @@ export async function GET(request: Request) {
       "Cache-Control": "public, max-age=86400",
     },
   });
-}
+};

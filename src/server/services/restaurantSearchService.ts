@@ -40,7 +40,7 @@ export const computeSoloFriendlinessScore = (input: {
       case "CONFIRMED_YES":
         return 70 + Math.round(input.soloSeatConfidence * 30) + typeBonus;
       case "CONFIRMED_NO":
-        return Math.round((1 - input.soloSeatConfidence) * 20);
+        return Math.round((1 - input.soloSeatConfidence) * 20) + typeBonus;
       case "UNKNOWN":
         return 40 + typeBonus;
     }
@@ -71,7 +71,7 @@ export const filterAndSortBySoloSeat = (
     ...computeSoloFriendlinessScore(r),
   }));
 
-  return withFriendliness.sort((a, b) => {
+  return [...withFriendliness].sort((a, b) => {
     const scoreDiff = b.soloFriendlinessScore - a.soloFriendlinessScore;
     return scoreDiff !== 0 ? scoreDiff : a.id.localeCompare(b.id);
   });

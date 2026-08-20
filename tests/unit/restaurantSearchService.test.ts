@@ -89,6 +89,19 @@ describe("computeSoloFriendlinessScore", () => {
     });
   });
 
+  it("CONFIRMED_NO：有 soloSeatType 一樣加 5 分，但仍不會落到「適合」等級", () => {
+    expect(
+      computeSoloFriendlinessScore({
+        soloSeatStatus: "CONFIRMED_NO",
+        soloSeatConfidence: 0,
+        soloSeatType: "吧台單人座",
+      }),
+    ).toEqual({
+      soloFriendlinessScore: 25,
+      soloFriendlinessLabel: "不建議單人前往",
+    });
+  });
+
   it("UNKNOWN：固定中段分數，soloSeatType 加 5 分", () => {
     expect(
       computeSoloFriendlinessScore({

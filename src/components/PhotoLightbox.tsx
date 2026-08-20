@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { buildPlacePhotoProxyUrl } from "@/lib/placePhotoUrl";
 import type { PlacePhoto } from "@/server/clients/placesClient";
 
 const LIGHTBOX_PHOTO_WIDTH_PX = 1200;
+
+const FOCUSABLE_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 type PhotoLightboxProps = {
   photos: PlacePhoto[];
@@ -19,12 +22,45 @@ export const PhotoLightbox = ({
   onClose,
   onNavigate,
 }: PhotoLightboxProps) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  // 開啟時記住觸發的元素（縮圖）並把焦點移進對話框；關閉（unmount）時
+  // 把焦點還給原本觸發的元素，符合 dialog 的無障礙焦點管理慣例。
+  useEffect(() => {
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+
+    return () => {
+      previouslyFocusedRef.current?.focus();
+    };
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft" && index > 0) onNavigate(index - 1);
       if (e.key === "ArrowRight" && index < photos.length - 1) {
         onNavigate(index + 1);
+      }
+
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusable = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+        );
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+
+        if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
 
@@ -37,10 +73,12 @@ export const PhotoLightbox = ({
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label="照片放大檢視"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 outline-none"
       onClick={onClose}
     >
       <button
