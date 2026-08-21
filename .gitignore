@@ -1,24 +1,13 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+/apps/*/node_modules
+/packages/*/node_modules
 
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
+# 這個 monorepo 一律用 yarn（見 package.json 的 packageManager），npx 有時會在 repo
+# 根目錄意外產生 npm 的 lockfile，不要讓它被誤 commit。
+/package-lock.json
+/apps/*/package-lock.json
+/packages/*/package-lock.json
 
 # misc
 .DS_Store
@@ -36,12 +25,3 @@ yarn-error.log*
 
 # vercel
 .vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-/src/generated/prisma
-
-# Claude Design 匯出的設計稿參考資料，只是重構網頁版畫面時的參考，不進版控。
-/ui-app
