@@ -47,7 +47,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "允許 JustSolo 存取相簿，讓你可以上傳大頭貼。"
+          "photosPermission": "允許 JustSolo 存取相簿，讓你可以上傳大頭貼。",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ]
     ],

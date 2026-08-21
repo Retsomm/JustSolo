@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 
@@ -23,6 +23,39 @@ export const AvatarUploader = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const processAndUpload = async (uri: string) => {
+    setIsProcessing(true);
+    try {
+      const dataUrl = await processPickedImageToDataUrl(uri);
+      updateAvatar.mutate(
+        { image: dataUrl },
+        {
+          onSuccess: async () => {
+            await utils.user.getProfile.invalidate();
+          },
+          onError: () => setError("上傳失敗，請稍後再試。"),
+          onSettled: () => setIsProcessing(false),
+        },
+      );
+    } catch {
+      setError("裁切失敗，請重新選擇圖片。");
+      setIsProcessing(false);
+    }
+  };
+
+  // Android 在低記憶體時可能把 App process 連同選圖器一起殺掉重啟，選圖結果
+  // 要靠 getPendingResultAsync() 在重新掛載時撈回來，否則使用者選完圖片會像
+  // 完全沒反應一樣（其他平台這個 API 固定回傳空陣列，不受影響）。
+  useEffect(() => {
+    ImagePicker.getPendingResultAsync().then((result) => {
+      if (!result || "code" in result || result.canceled) return;
+      const uri = result.assets[0]?.uri;
+      if (!uri) return;
+      processAndUpload(uri);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handlePress = async () => {
     setError(null);
 
@@ -43,23 +76,7 @@ export const AvatarUploader = () => {
     const uri = result.assets[0]?.uri;
     if (!uri) return;
 
-    setIsProcessing(true);
-    try {
-      const dataUrl = await processPickedImageToDataUrl(uri);
-      updateAvatar.mutate(
-        { image: dataUrl },
-        {
-          onSuccess: async () => {
-            await utils.user.getProfile.invalidate();
-          },
-          onError: () => setError("上傳失敗，請稍後再試。"),
-          onSettled: () => setIsProcessing(false),
-        },
-      );
-    } catch {
-      setError("裁切失敗，請重新選擇圖片。");
-      setIsProcessing(false);
-    }
+    await processAndUpload(uri);
   };
 
   const isPending = isProcessing || updateAvatar.isPending;
