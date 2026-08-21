@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-export default function manifest(): MetadataRoute.Manifest {
+const manifest = (): MetadataRoute.Manifest => {
   return {
     name: "JustSolo | 一人友善餐廳搜尋",
     short_name: "JustSolo",
@@ -28,4 +28,6 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
   };
-}
+};
+
+export default manifest;
