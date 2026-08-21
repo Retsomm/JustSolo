@@ -74,3 +74,16 @@ export const BackIcon = ({ color, size = 16 }: IconProps) => (
     <Path d="M15 6l-6 6 6 6" />
   </Svg>
 );
+
+export const MoonIcon = ({ color, size = 16 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" stroke={color} {...strokeProps}>
+    <Path d="M12.5 3a9 9 0 1 0 8.5 12.5A7 7 0 1 1 12.5 3z" />
+  </Svg>
+);
+
+export const SunIcon = ({ color, size = 16 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" stroke={color} {...strokeProps}>
+    <Circle cx="12" cy="12" r="4" />
+    <Path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+  </Svg>
+);

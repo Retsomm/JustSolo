@@ -13,7 +13,7 @@ export const ComingSoonScreen = ({ message }: ComingSoonScreenProps) => {
   const theme = useOrganicTheme();
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]} edges={["bottom"]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]} edges={["top", "bottom"]}>
       <AppHeader />
       <View style={styles.content}>
         <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text>
