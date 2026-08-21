@@ -73,6 +73,7 @@
 | 個人頁面拆成「個人資料」／「我的收藏」兩個分頁＋收藏清單分頁按鈕 | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | 2026-08-20 使用者要求：收藏資料太多會把登出按鈕擠到很底部，要拆成兩個分頁；收藏超過 10 筆也要加分頁按鈕。**架構**：比照 `RestaurantDetailView.tsx` 既有的分頁按鈕模式（`role="tablist"`/`role="tab"`/`aria-selected`），個人頁面新增「個人資料」（大頭貼/名稱/信箱/登出按鈕，內容固定不會變長）／「我的收藏」（收藏清單＋分頁）兩個分頁，預設顯示「個人資料」——這樣不管收藏幾筆，登出按鈕永遠在個人資料分頁的固定位置，不會被清單長度影響。**後端加分頁**：`favorite.list` 原本回傳整份收藏清單（不分頁），現在比照 `restaurantSearchService.ts` 的 `searchRestaurants` 同一套邏輯——`favoriteService.ts` 的 `listFavoriteRestaurants` 改吃 `page` 參數，重用 `RESTAURANT_PAGE_SIZE`（10 筆/頁）與 `src/lib/pagination.ts` 的 `paginate` 純函式，回傳型別從 `RestaurantSearchResultWithFriendliness[]` 改成 `PaginatedRestaurants`（跟首頁列表同一個型別）；`favorite.ts` router 的 `list` procedure 加上 `listFavoritesInputSchema`（`page` 欄位）；`useFavorites` hook 改吃 `page` 參數。**前端**：個人頁面重用既有的 `Pagination.tsx` 元件（跟首頁列表分頁是同一個元件，不重新做一套），`page` 是元件內部 local state，收藏清單超過一頁才會顯示分頁按鈕（`Pagination.tsx` 本身邏輯：`totalPages<=1` 不渲染）。單元測試：`favoriteService.test.ts` 的 `listFavoriteRestaurants` 測試改成斷言分頁後的回傳形狀，新增一個「12 筆收藏切出正確頁碼」的測試；`ProfilePage.test.tsx` 整份重寫（未登入/個人資料分頁預設顯示＋登出按鈕/切到我的收藏分頁的空清單與清單渲染/收藏超過一頁時顯示分頁按鈕），共 6 個測試。共 158 個測試全過；`tsc --noEmit`/`yarn lint`/`yarn build` 均乾淨。**Claude 沒有在瀏覽器實際看過分頁切換/收藏分頁按鈕的樣式**，依專案 git 紀律停在工作目錄未 commit，等使用者本機測試：兩個分頁按鈕切換是否正常、個人資料分頁的登出按鈕位置是否固定不受收藏筆數影響、收藏超過 10 筆時分頁按鈕是否正確出現並可以正常翻頁。**2026-08-20 使用者本機測試後追加 3 個小調整，均已完成並確認 OK**：(1) 窄螢幕時個人資料分頁的大頭貼/名稱/信箱/登出按鈕改成置中排列（`AvatarUploader.tsx`／`page.tsx` 加 `items-center sm:items-start`，寬螢幕維持原本並排）；(2) 使用者回報間距太擠，調大各元素間的 `gap`；(3) 收藏清單卡片的「移除收藏」按鈕從標題列右側移到卡片右下角（跟友善度徽章同一列），比照首頁列表卡片的既有排版，避免長店名擠壓分類標籤。**同一輪也修正一個延伸出來的排版 bug**：店名過長時原本會擠壓/覆蓋掉右側的分類標籤（`h2`/`h3`/`h1` 沒有 `min-w-0 flex-1`，flex item 預設不會縮小到比內容還窄，導致長文字不會提早換行），已在首頁列表卡片、個人頁面收藏清單卡片、詳情頁標題列三處統一補上 `min-w-0 flex-1`＋`items-start`（原本是 `items-center`），店名過長會自己換行，分類標籤永遠固定在區塊右上角。這些都是純 CSS/排版調整，不影響邏輯，158 個測試全過。 |
 | 地圖檢視（Phase 2 第一項） | ✅ 完成程式碼＋**使用者已本機測試確認 OK**（2026-08-20） | 2026-08-20 使用者選定 Phase 2 優先做這項，用 `EnterPlanMode` 規劃後實作。**架構**：`findRestaurants`（Client 層）本來就是「依篩選條件撈全部符合資料、不分頁」，只是回傳型別沒帶 `lat`/`lng`——補上這兩個欄位後，Service 層抽出共用的 `fetchFilteredRestaurants`，`searchRestaurants`（清單，加 `paginate`）跟新的 `getRestaurantMapMarkers`（地圖，加 `toMapMarkers` 濾掉無座標資料）都呼叫同一個共用函式，避免兩處各自組 Client 參數重蹈「漏傳篩選欄位」的坑（呼應已知的坑第 16 條）。`searchRestaurantsInputSchema` 拆出共用的 `restaurantFilterInputSchema`（不含 `page`），新的 `restaurant.mapMarkers` tRPC procedure 重用它。**前端**：新增 `leaflet`/`react-leaflet`/`react-leaflet-cluster` 依賴；`src/components/RestaurantMap.tsx` 用 `MapContainer`+`TileLayer`（OpenStreetMap）+`MarkerClusterGroup`+`Marker`+`Popup`；marker 故意不用 Leaflet 預設 PNG icon（Next.js 打包常見的路徑 404 問題），改用 `L.divIcon` 畫依 `soloSeatStatus` 上色的圓點（綠/灰/橘），一眼看出單人座位可信度；popup 文字**刻意用固定深色**（`text-gray-900`），不是會翻轉的 `text-foreground`——因為 Leaflet popup 背景固定白色、不隨 App 深色模式翻轉，用會翻轉的文字色深色模式下會白字疊白底看不見（跟已知的坑第 10 條同類但方向相反的情況，新記一筆避免以後在 Leaflet popup 這種「有自己固定背景色的第三方元件內容」裡誤用主題 token）。首頁 `page.tsx` 加「列表/地圖」切換鈕，`RestaurantMap` 用 `next/dynamic({ssr:false})` 動態載入（避免 Leaflet 存取 `window` 在 SSR 階段噴錯），`useRestaurantMapMarkers` 只有切到地圖檢視時才會 `enabled: true` 打 API。單元測試新增 `toMapMarkers`/`getRestaurantMapMarkers`（含接線測試）、`RestaurantMap.test.tsx`（mock `react-leaflet`/`react-leaflet-cluster`，比照既有慣例避免在 jsdom 裡真的渲染地圖）、`HomePage.test.tsx` 新增列表/地圖切換互動測試，共 71 個全過。`yarn build` 確認 `/` 仍能靜態預渲染，SSR 沒有因為動態載入 Leaflet 而噴錯；`yarn lint` 乾淨。使用者本機測試地圖圖磚顯示、marker 顏色/聚合、popup 連結皆確認 OK。 |
 | **monorepo 轉換 + Expo 手機版 Milestone 1（純瀏覽）** | ✅ 骨架程式碼完成＋本環境可驗證的部分全綠，⏸ **手機 App 實際在模擬器/實機上跑起來需要使用者驗證** | 2026-08-21 使用者要求開始開發手機版，參考 `~/Projects/TravelInTime` 的 Expo/EAS 設定慣例（但那個專案沒有後端、手機版完全獨立手動複製邏輯，不適合直接照抄程式碼共用方式）。用 `EnterPlanMode` 規劃後執行，過程分成三個部分：**(1) monorepo 骨架**：`git mv` 把原本 repo 根目錄的 Next.js App 整個搬進 `apps/web`，`src/server/**`＋純函式（`pagination`/`geo`/`priceLevel`/`soloSeatLabel`/`placePhotoUrl`）＋型別（`category`/`favorite`/`restaurant`/`soloSeatReport`/`userProfile`）＋`prisma/`＋匯入腳本搬進新建的 `packages/shared`；根目錄新增 workspaces `package.json`（`workspaces: ["apps/*", "packages/*"]`）＋各 workspace 專屬 `.gitignore`。**(2) `packages/shared` 內部拆分**：`restaurantSearchService.ts`／`soloSeatReportService.ts` 原本把純函式（`computeSoloFriendlinessScore`／`filterAndSortBySoloSeat`／`toMapMarkers`／`pickRandom`／`computeSoloSeatStatus` 等）跟 DB-dependent 的組合層函式（`searchRestaurants`／`submitSoloSeatReport` 等）混在同一個檔案，已拆成獨立的 `src/pure/restaurantFriendliness.ts`／`src/pure/soloSeatStatus.ts`，DB-dependent 的組合層改成反過來 import 這兩個純函式檔案——這樣手機版才能只 value-import `pure/`，完全不會被 Metro bundle 進 Prisma/`pg`。`src/index.ts` 是安全 barrel（只 export `pure/`＋`types/`），`AppRouter` 型別走深路徑 `@justsolo/shared/src/server/routers/_app` 的 **type-only** import。**(3) `apps/mobile` 新建**：`npx create-expo-app` 用官方預設模板（含 expo-router，Expo SDK 57），刪掉範例的 tabs/動畫 icon/demo 元件，保留可重用的主題原語（`ThemedText`/`ThemedView`/`useTheme`/`useColorScheme`/`Colors`/`Spacing`）；新增 `metro.config.js`（`watchFolders`/`resolver.nodeModulesPaths`/`disableHierarchicalLookup`，monorepo 標準寫法）；`app.json` 改成 JustSolo 品牌（`com.justsolo.app`）；`eas.json` 比照 TravelInTime 的 build profile 形狀；新增 `src/lib/apiBaseUrl.ts`（用 `expo-constants` 的 `hostUri` 抓開發機區網 IP，讓實機能連到 `yarn dev`）／`src/lib/trpc.ts`（跟網頁版 `providers.tsx` 同一套 `httpBatchLink`+`superjson` 模式，但用絕對網址、不需要 `SessionProvider`）；畫面：`app/index.tsx`（搜尋/篩選/清單，`FilterBar`+`RestaurantCard`+`Pagination`）、`app/restaurant/[id].tsx`（詳情頁，不含收藏/回報表單）。**驗證**：`yarn typecheck`（三個 workspace 都過）／`yarn test`（`apps/web` 86 個＋`packages/shared` 88 個，共 174 個全過，其中 `packages/shared` 的測試同時驗證了純函式拆分沒有拆錯欄位）／`yarn lint`／`yarn build`（Next.js production build，證明 `transpilePackages` 正確處理 `packages/shared` 原始 TS）均綠燈；額外用 `npx expo export --platform ios` 在沒有模擬器的情況下實測 Metro 真的能把整個手機版 App（含 `@justsolo/shared` 跨套件 import）打包成功（1346 個模組）。**Claude 完全沒辦法在本環境驗證手機 App 實際在模擬器/實機上的畫面/互動**，依專案 git 紀律停在工作目錄未 commit——使用者接手時要做：`cd apps/mobile && npx expo start`，用 iOS 模擬器或實機（同一區網）掃碼連線，確認能看到 `yarn dev` 本機資料庫的真實餐廳資料、篩選/搜尋/分頁互動正常、點卡片能進詳情頁。過程中修正了三個環境設定的坑（詳見「已知的坑」第 19-21 條）：packages/shared 內部改用 relative import（不能繼續用 `@/` alias，會跟消費端 workspace 自己的 `@/` alias 衝突）、next-auth 的 `Session` 型別擴充要在每個會碰到 tRPC `Context` 型別的 workspace 各自複製一份、yarn classic 混合不同 React 版本（Next.js 19.2.8 vs Expo SDK 57 釘的 19.2.3）時要用根目錄 `resolutions` 強制統一版本（不要用 `nohoist`，這個組合在這個專案的依賴圖下會讓 `yarn install` 直接噴 `ENOENT` 裝不起來）。 |
+| **手機版：修正資料載入失敗＋改用 ui-app 的 Organic 設計** | ✅ 程式碼完成＋本環境可驗證的部分全綠，⏸ **需要使用者重新原生建置＋實機/模擬器驗證** | 2026-08-21（同一天稍晚）使用者實測回報兩個問題：(1) 畫面卡在轉圈圈、資料載入失敗；(2) 手機版應該要用 `apps/web/ui-app` 裡的設計稿，結果 Claude 上一輪完全沒去看那份設計、憑感覺用 Expo 模板預設樣式刻畫面。**問題 (1) 根因**：`resolveApiBaseUrl()` 沒有處理 Android 模擬器（AVD）的網路——AVD 的虛擬網路下 `localhost` 指向模擬器自己，連不到開發機，且原本的 tRPC `httpBatchLink` 沒有逾時設定，連不上就無限轉圈，不會變成看得到的錯誤。已修正：加入 `expo-device` 判斷 `Platform.OS==="android" && !Device.isDevice` 時改用 Android 模擬器保留位址 `10.0.2.2`；`trpc.ts` 的 `httpBatchLink` 加上 `AbortController` 8 秒逾時，請求真的連不上時會變成 `isError`，不會無限 loading。**問題 (2)**：直接讀 `apps/web/ui-app/project/App.dc.html`（唯一用 `ios-frame.jsx` 包住、真正代表「手機 App」的設計稿——`Home.dc.html`/`Detail.dc.html`/`Map.dc.html`/`Profile.dc.html` 其實是**網頁版**的重新設計，命名容易混淆但不是手機版設計）跟它引用的 Organic 設計系統 CSS（`_ds/organic-*/styles.css`）取得色票/字型/圓角/間距的精確數值，另外發現 `apps/web/src/app/page.tsx`／`RestaurantDetailView.tsx` 早就已經照這份設計重構過（`bg-surface`/`text-accent`/`rounded-3xl`/一次推薦一家＋換一家＋前往看看的互動模式），比對設計稿本身更精確，於是直接照著網頁版現有的真實互動邏輯（`useRestaurantPick`＋`excludeIds` 洗牌、篩選收合面板、「或查看完整列表」展開/收合、詳情頁 5 個分頁：總覽/菜單/評論/單人友善/圖片）在 RN 重新實作，不是照抄一次舊有的、只做篩選+清單的陽春版面。新增 `src/constants/organicTheme.ts`（色票/圓角/間距，light/dark 兩組，dark 數值取自 `App.dc.html` 手動切換 dark 時用的那組 token）、`useOrganicTheme` hook；新增 `expo-router` 的 `(tabs)` 分頁群組（首頁/地圖/收藏/我的，比照設計稿的底部導覽列，只有首頁這一輪功能完整，其餘三個是「這一輪還沒開放」的靜態提示畫面，因為都需要登入或是延後的功能）；新增 `react-native-svg`（畫底部導覽列跟按鈕圖示，path 資料照抄設計稿）、`@expo-google-fonts/caprasimo`＋`@expo-google-fonts/figtree`（設計稿指定的標題/內文字型）；新增 `FriendlinessBadge`／`StatusTag`／`Button`／`PlaceDetailsSection`（含 `useRestaurantPlaceDetails` hook、`buildAbsolutePlacePhotoUrl` 幫 `packages/shared` 算出的相對路徑照片網址補上手機版的 API origin）等元件，整個 Home／Detail 畫面重寫成跟網頁版對齊的互動模式。**過程中的另一個坑**：`npx expo install expo-device`／`react-native-svg` 這類指令**會把根目錄 `resolutions` 鎖的 `react`/`react-dom` 版本改回 Expo SDK 原本釘的 19.2.3**（`expo install` 內部似乎沒有照 yarn 的 `resolutions` 走），每次跑完 `expo install` 都要回根目錄重新 `yarn install` 一次把版本拉回 19.2.8，否則會重新掉回已知的坑第 21 條那個 React 版本分裂問題（詳見已知的坑第 22 條）。**驗證**：`yarn typecheck`（三個 workspace）／`yarn test`（174 個）／`yarn lint`／`npx expo export --platform ios`（Metro 打包成功，1516 個模組，含新增的字型/SVG）均綠燈。**新增了兩個原生依賴（`react-native-svg`／`expo-device`），使用者需要重新跑一次 `npx expo run:android`（或 iOS 對應指令）做原生重建，單純重新整理 JS bundle 不夠**——Claude 完全沒辦法在本環境驗證畫面實際跑起來長什麼樣，仍然依專案 git 紀律停在工作目錄未 commit。 |
 
 ## 已知的坑（環境建置時踩過，未來不要重踩）
 
@@ -277,6 +278,34 @@
     不要一遇到版本數字不同就直接跳去 `nohoist`——`nohoist` 該留給「這個套件本質上就不能
     共用單一版本」（例如真的需要兩個不相容 major 版本並存）的情境，先確認過 caret/tilde
     range 真的無法相容再用。
+22. **`npx expo install <pkg>` 會把根目錄 yarn `resolutions` 鎖定的 `react`/`react-dom`
+    版本改回 Expo SDK 原本釘的版本**：第 21 條修好之後，任何一次跑 `npx expo install
+    expo-device`／`react-native-svg` 之類指令，`apps/mobile/package.json` 的
+    `react`/`react-dom` 都會被改回 `19.2.3`（`expo install` 內部的解析邏輯似乎沒有照
+    yarn 的 `resolutions` 走），導致實際裝出來的 `node_modules` 又出現 apps/web 用
+    `19.2.8`、其他地方用 `19.2.3` 的分裂狀態。**修法**：**每次跑完 `npx expo install`
+    之後，一定要回到 repo 根目錄重新跑一次 `yarn install`**，把版本拉回 `resolutions`
+    鎖定的 `19.2.8`，跑完用 `node -e "console.log(require('./node_modules/react/package.json').version)"`
+    確認一次，不要只憑「`expo install` 顯示成功」就放心往下做。
+23. **`apps/web/ui-app/project/` 這個 Claude Design 匯出的資料夾裡，檔名不代表你以為的
+    那個畫面**：`Home.dc.html`／`Detail.dc.html`／`Map.dc.html`／`Profile.dc.html` 雖然
+    名稱看起來像對應四個畫面，但它們其實是**網頁版**的重新設計稿（`<nav>`＋`<a href>`
+    連結、`max-width:560px` 置中版面，是瀏覽器頁面的結構）；**真正代表「手機 App」的
+    設計稿只有 `App.dc.html` 一個檔案**（唯一用 `x-import
+    component-from-global-scope="IOSDevice" from="./ios-frame.jsx"` 包住的那個，
+    內部用一個 state machine 切換 首頁/地圖/收藏/我的/詳情 五種畫面 + 底部導覽列，是
+    iOS 裝置外框裡的原型）。2026-08-21 第一輪做手機版 milestone 1 時完全沒有打開
+    `ui-app` 資料夾，憑感覺用 Expo 官方模板的預設樣式刻畫面，被使用者指出「RN 版的設計圖
+    也要使用 ui-app 中的」才回頭補做。**教訓**：`ui-app/README.md` 開頭雖然明講「讀
+    `App Icon Options.dc.html`」，但沒有明講「哪個檔案是網頁版、哪個是手機版」，這件事
+    要自己從每個 `.dc.html` 檔案內部找 `ios-frame`/`x-import` 這類線索判斷，看到專案裡有
+    `ui-app`（或任何 Claude Design 匯出資料夾）**且正在做手機版功能時，一定要先打開來看
+    有沒有專屬的手機版設計稿，不能假設「網頁版有做設計、手機版就沒有」或反過來**。另外，
+    `apps/web/src/app/page.tsx`／`RestaurantDetailView.tsx` 這種**已經照設計稿重構過的
+    真實元件**，資訊密度跟精確度都比原始 `.dc.html` 靜態稿高（含實際的資料流、互動狀態、
+    edge case 處理），如果網頁版已經做過同一份設計的實作，**優先照抄網頁版元件的實際邏輯**
+    （不是重新從 `.dc.html` 生語法），只在網頁版沒做過的地方才回頭查 `.dc.html`／
+    設計系統 CSS（`_ds/organic-*/styles.css`）補色票/字型/間距的精確數值。
 
 ## 下次接續開發時，建議的下一步（依優先序）
 
@@ -305,11 +334,17 @@
 13. 手動標註前 10-20 間熟悉的店（見上方第 9 項，尚未做，可以搭配友善度徽章一起用
     Prisma Studio 手動測看看不同分數/標籤呈現效果）
 14. Phase 3（即時空位、推薦系統）尚未規劃細節，等 Phase 2 全部使用者驗證過後再討論
-15. **手機版 Milestone 1（monorepo + Expo 純瀏覽功能）2026-08-21 程式碼完成，⏸ 等使用者
-    本機用模擬器/實機實測**：`cd apps/mobile && npx expo start`，確認清單/篩選/搜尋/分頁/
-    詳情頁都能正常抓到 `yarn dev` 本機資料庫的資料，深淺色主題下版面是否清楚。使用者驗證
-    OK 之後才能 commit 這整輪 monorepo 轉換 + 手機版骨架的變更（目前全部停在工作目錄未
-    commit，見上方進度對照表「monorepo 轉換 + Expo 手機版 Milestone 1」那一列）
+15. **手機版 Milestone 1（monorepo + Expo 純瀏覽功能，含改用 ui-app 的 Organic 設計＋修正
+    資料載入失敗）2026-08-21 程式碼完成，⏸ 等使用者本機用模擬器/實機實測**：因為新增了
+    `react-native-svg`／`expo-device` 兩個原生依賴，**要先重新跑一次原生建置**
+    （`npx expo run:android` 或對應的 iOS 指令，不是只重開 `npx expo start`），才能確認：
+    首頁能不能正常抓到 `yarn dev` 本機資料庫的資料（換一家/前往看看/篩選/完整列表/分頁）、
+    詳情頁 5 個分頁（總覽/菜單/評論/單人友善/圖片）、底部導覽列 4 個分頁（首頁功能完整，
+    其餘三個是靜態提示）、深淺色主題下 Organic 色票（米色系 `#f5ead8` 底、橘色
+    `#c67139` 主色調、Caprasimo 標題字型）是否正確顯示。使用者驗證 OK 之後才能 commit
+    這整輪 monorepo 轉換 + 手機版骨架 + 設計還原的變更（目前全部停在工作目錄未 commit，
+    見上方進度對照表「monorepo 轉換 + Expo 手機版 Milestone 1」＋「手機版：修正資料載入
+    失敗＋改用 ui-app 的 Organic 設計」兩列）
 16. 手機版 Milestone 2（尚未規劃）：Google OAuth 登入（`expo-auth-session` 搭橋 next-auth
     JWT session）、收藏、單人座位回報、個人頁面、地圖檢視——這些都刻意排除在 Milestone 1
     之外，等使用者測過純瀏覽功能、決定要不要繼續再另外規劃

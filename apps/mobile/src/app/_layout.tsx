@@ -10,12 +10,22 @@ import {
 } from "@expo-google-fonts/figtree";
 
 import { trpc, createTrpcClient } from "@/lib/trpc";
-import { useOrganicTheme } from "@/hooks/useOrganicTheme";
+import { OrganicThemeProvider, useOrganicTheme } from "@/hooks/useOrganicTheme";
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+const RootLayoutNavigator = () => {
   const theme = useOrganicTheme();
+
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.bg } }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="restaurant/[id]" />
+    </Stack>
+  );
+};
+
+export default function RootLayout() {
   const [queryClient] = useState(() => new QueryClient());
   const [trpcClient] = useState(() => createTrpcClient());
   const [fontsLoaded] = useFonts({
@@ -32,13 +42,12 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.bg } }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="restaurant/[id]" />
-        </Stack>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <OrganicThemeProvider>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <RootLayoutNavigator />
+        </QueryClientProvider>
+      </trpc.Provider>
+    </OrganicThemeProvider>
   );
 }

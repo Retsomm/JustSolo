@@ -29,7 +29,7 @@ export default function RestaurantDetailScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]} edges={["bottom"]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]} edges={["top", "bottom"]}>
       <AppHeader showBack />
       <ScrollView contentContainerStyle={styles.content}>
         {isLoading && <ActivityIndicator color={theme.accent} />}

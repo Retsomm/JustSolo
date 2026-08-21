@@ -74,7 +74,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]} edges={["bottom"]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]} edges={["top", "bottom"]}>
       <AppHeader />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[styles.intro, { color: theme.textSecondary }]}>

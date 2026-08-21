@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
-import { BackIcon } from "@/components/icons/Icons";
-import { useOrganicTheme } from "@/hooks/useOrganicTheme";
+import { BackIcon, MoonIcon, SunIcon } from "@/components/icons/Icons";
+import { useOrganicTheme, useThemeToggle } from "@/hooks/useOrganicTheme";
 import { FontFamily, OrganicSpacing } from "@/constants/organicTheme";
 
 type AppHeaderProps = {
@@ -12,20 +12,31 @@ type AppHeaderProps = {
 export const AppHeader = ({ showBack = false }: AppHeaderProps) => {
   const theme = useOrganicTheme();
   const router = useRouter();
+  const { scheme, toggleScheme } = useThemeToggle();
 
   return (
     <View style={styles.row}>
       <Text style={[styles.title, { color: theme.text }]}>JustSolo</Text>
-      {showBack && (
+      <View style={styles.actions}>
+        {showBack && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="返回"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+            style={[styles.iconButton, { borderColor: theme.border }]}
+          >
+            <BackIcon color={theme.text} />
+          </Pressable>
+        )}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="返回"
-          onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+          accessibilityLabel="切換主題色"
+          onPress={toggleScheme}
           style={[styles.iconButton, { borderColor: theme.border }]}
         >
-          <BackIcon color={theme.text} />
+          {scheme === "dark" ? <MoonIcon color={theme.text} /> : <SunIcon color={theme.text} />}
         </Pressable>
-      )}
+      </View>
     </View>
   );
 };
@@ -38,6 +49,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: OrganicSpacing[4],
     paddingTop: OrganicSpacing[3],
     paddingBottom: OrganicSpacing[2],
+  },
+  actions: {
+    flexDirection: "row",
+    gap: 8,
   },
   title: {
     fontFamily: FontFamily.heading,
