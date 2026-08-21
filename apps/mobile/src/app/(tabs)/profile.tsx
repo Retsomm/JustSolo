@@ -1,11 +1,12 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/AppHeader";
+import { AvatarUploader } from "@/components/AvatarUploader";
 import { Button } from "@/components/Button";
+import { EditableName } from "@/components/EditableName";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganicTheme } from "@/hooks/useOrganicTheme";
-import { trpc } from "@/lib/trpc";
 import { FontFamily, OrganicSpacing } from "@/constants/organicTheme";
 
 const ProfileTabScreen = () => {
@@ -36,20 +37,14 @@ const ProfileTabScreen = () => {
 export default ProfileTabScreen;
 
 const SignedInProfile = ({ onSignOut }: { onSignOut: () => void }) => {
-  const theme = useOrganicTheme();
   // 401 時的登出處理集中在 trpc.ts 的 fetch 攔截器＋useAuth 的 unauthorizedHandler
   // 註冊機制，這裡不用再另外判斷 error.data.code，見已知的坑第 26 條。
-  const { data, isLoading } = trpc.user.getProfile.useQuery();
-
+  // 大頭貼/名稱的顯示與編輯比照網頁版拆成 AvatarUploader/EditableName 兩個
+  // 元件，兩者都各自呼叫 useUserProfile()（不經 session，直接查 DB）。
   return (
     <>
-      {isLoading && <Text style={[styles.message, { color: theme.textSecondary }]}>載入中…</Text>}
-      {!isLoading && (
-        <>
-          {data?.image && <Image source={{ uri: data.image }} style={styles.avatar} />}
-          <Text style={[styles.name, { color: theme.text }]}>{data?.name ?? "已登入"}</Text>
-        </>
-      )}
+      <AvatarUploader />
+      <EditableName />
       <Button label="登出" onPress={onSignOut} style={styles.signOutButton} />
     </>
   );
@@ -71,15 +66,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     lineHeight: 22,
-  },
-  name: {
-    fontFamily: FontFamily.heading,
-    fontSize: 20,
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
   },
   signOutButton: {
     marginTop: OrganicSpacing[4],

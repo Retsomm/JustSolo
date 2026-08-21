@@ -43,7 +43,15 @@
           "iosUrlScheme": "com.googleusercontent.apps.997485095701-2jrf8a9d4o02sv30rqqrj9tbmiqc4ku3"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "允許 JustSolo 存取相簿，讓你可以上傳大頭貼。",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
