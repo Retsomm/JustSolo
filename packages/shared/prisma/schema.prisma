@@ -47,13 +47,28 @@ model Restaurant {
 }
 
 model User {
-  id        String           @id @default(cuid())
-  email     String           @unique
-  name      String?
-  image     String?
-  createdAt DateTime         @default(now())
-  reports   SoloSeatReport[]
-  favorites Favorite[]
+  id             String           @id @default(cuid())
+  googleId       String           @unique // Google id_token 的 sub claim，帳號系統的實際身分鍵
+  email          String           // 僅作為顯示/聯絡用途，登入不再以此欄位查找/連結帳號，故不設唯一約束
+  name           String?
+  image          String?
+  createdAt      DateTime         @default(now())
+  reports        SoloSeatReport[]
+  favorites      Favorite[]
+  mobileSessions MobileSession[]
+}
+
+// 手機版簽發的長效 session token 對應的伺服器端紀錄，讓登出/撤銷有地方可查——
+// 光靠 JWT 本身無法在到期前讓已簽出的 token 失效。
+model MobileSession {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // 使用者的收藏清單，一人一店最多一筆（重複收藏視為 no-op）。

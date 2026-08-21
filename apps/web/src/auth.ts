@@ -19,8 +19,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // 不是預防性假設）。名稱/大頭貼一律直接查 DB（`user.getProfile`），
     // 不透過 session/token 傳遞。
     async jwt({ token, profile }) {
-      if (profile?.email) {
+      // sub 是帳號系統的身分鍵（見 packages/shared 的 googleIdTokenPayload.ts），
+      // email 只作為顯示用途；沒驗證過的 email（email_verified !== true）不可信，
+      // 不能拿來當帳號資料寫入。
+      if (profile?.sub && profile.email && profile.email_verified === true) {
         const user = await registerOrUpdateUser({
+          googleId: profile.sub,
           email: profile.email,
           name: profile.name ?? null,
           image: typeof profile.picture === "string" ? profile.picture : null,

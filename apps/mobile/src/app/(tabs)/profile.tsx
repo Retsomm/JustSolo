@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -8,7 +9,7 @@ import { useOrganicTheme } from "@/hooks/useOrganicTheme";
 import { trpc } from "@/lib/trpc";
 import { FontFamily, OrganicSpacing } from "@/constants/organicTheme";
 
-export default function ProfileTabScreen() {
+const ProfileTabScreen = () => {
   const theme = useOrganicTheme();
   const { status, signInWithGoogle, signOut } = useAuth();
 
@@ -31,11 +32,21 @@ export default function ProfileTabScreen() {
       </View>
     </SafeAreaView>
   );
-}
+};
+
+export default ProfileTabScreen;
 
 const SignedInProfile = ({ onSignOut }: { onSignOut: () => void }) => {
   const theme = useOrganicTheme();
-  const { data, isLoading } = trpc.user.getProfile.useQuery();
+  const { handleUnauthorized } = useAuth();
+  const { data, isLoading, error } = trpc.user.getProfile.useQuery();
+
+  useEffect(() => {
+    if (error?.data?.code === "UNAUTHORIZED") {
+      handleUnauthorized();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error]);
 
   return (
     <>
