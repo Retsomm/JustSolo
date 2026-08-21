@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { soloSeatStatusLabel } from "@justsolo/shared";
 
 import { AppHeader } from "@/components/AppHeader";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { FilterBar } from "@/components/FilterBar";
 import { FriendlinessBadge } from "@/components/FriendlinessBadge";
 import { Pagination } from "@/components/Pagination";
@@ -137,7 +138,10 @@ export default function HomeScreen() {
                   <Text style={[styles.heroTitle, { color: theme.text }]} numberOfLines={1}>
                     {current.name}
                   </Text>
-                  <FriendlinessBadge score={current.soloFriendlinessScore} label={current.soloFriendlinessLabel} />
+                  <View style={styles.heroHeaderRight}>
+                    <FriendlinessBadge score={current.soloFriendlinessScore} label={current.soloFriendlinessLabel} />
+                    <FavoriteButton restaurantId={current.id} />
+                  </View>
                 </View>
                 <Text style={[styles.heroMeta, { color: theme.textSecondary }]}>
                   {current.categoryName} · {current.address}
@@ -194,7 +198,10 @@ export default function HomeScreen() {
                 </Text>
                 <View style={styles.listCardFooterRow}>
                   <StatusTag status={r.soloSeatStatus} />
-                  <FriendlinessBadge score={r.soloFriendlinessScore} label={r.soloFriendlinessLabel} />
+                  <View style={styles.listCardFooterRight}>
+                    <FriendlinessBadge score={r.soloFriendlinessScore} label={r.soloFriendlinessLabel} />
+                    <FavoriteButton restaurantId={r.id} size={16} />
+                  </View>
                 </View>
               </Pressable>
             ))}
@@ -266,6 +273,11 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.heading,
     fontSize: 20,
   },
+  heroHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: OrganicSpacing[2],
+  },
   heroMeta: {
     fontFamily: FontFamily.body,
     fontSize: 13,
@@ -323,5 +335,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 4,
+  },
+  listCardFooterRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: OrganicSpacing[2],
   },
 });

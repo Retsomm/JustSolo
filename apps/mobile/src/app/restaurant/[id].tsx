@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { soloSeatStatusLabel } from "@justsolo/shared";
 
 import { AppHeader } from "@/components/AppHeader";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { FriendlinessBadge } from "@/components/FriendlinessBadge";
 import { PlaceDetailsSection } from "@/components/PlaceDetailsSection";
 import type { PlaceDetailsTab } from "@/components/PlaceDetailsSection";
@@ -44,11 +45,14 @@ export default function RestaurantDetailScreen() {
 
         {data && (
           <>
-            <View>
-              <Text style={[styles.title, { color: theme.text }]}>{data.name}</Text>
-              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{data.categoryName}</Text>
-              <Text style={[styles.address, { color: theme.text }]}>{data.address}</Text>
-              {data.phone && <Text style={[styles.address, { color: theme.text }]}>電話：{data.phone}</Text>}
+            <View style={styles.titleRow}>
+              <View style={styles.titleColumn}>
+                <Text style={[styles.title, { color: theme.text }]}>{data.name}</Text>
+                <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{data.categoryName}</Text>
+                <Text style={[styles.address, { color: theme.text }]}>{data.address}</Text>
+                {data.phone && <Text style={[styles.address, { color: theme.text }]}>電話：{data.phone}</Text>}
+              </View>
+              <FavoriteButton restaurantId={data.id} />
             </View>
 
             <View style={[styles.tabBar, { borderColor: theme.border }]}>
@@ -113,6 +117,15 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.body,
     fontSize: 14,
     textAlign: "center",
+  },
+  titleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: OrganicSpacing[2],
+  },
+  titleColumn: {
+    flex: 1,
   },
   title: {
     fontFamily: FontFamily.heading,

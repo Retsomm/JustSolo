@@ -3,7 +3,8 @@ import * as SecureStore from "expo-secure-store";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 import { trpc } from "@/lib/trpc";
-import { setAuthToken } from "@/lib/authToken";
+import { getAuthToken, setAuthToken } from "@/lib/authToken";
+import { setUnauthorizedHandler } from "@/lib/unauthorizedHandler";
 
 const SECURE_STORE_KEY = "mobileSessionToken";
 
@@ -18,7 +19,6 @@ type AuthContextValue = {
   status: AuthStatus;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-  handleUnauthorized: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -30,13 +30,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOutMutation = trpc.auth.signOut.useMutation();
 
   const clearLocalSession = async () => {
+    // 這個函式可能被好幾個同時掛載的 protectedProcedure 查詢各自獨立觸發
+    // （例如清單上好幾顆 FavoriteButton 各自的 401 handler），呼叫之間有
+    // SecureStore 非同步 I/O 的空檔。如果在等待期間使用者已經完成一次新的登入
+    // （token 換成新的），下面 finally 不能把剛登入成功的新 session 也清掉——
+    // 所以要先記住呼叫當下的 token，清除前再比對一次是否還是同一個。
+    const tokenAtCallTime = getAuthToken();
     try {
-      await SecureStore.deleteItemAsync(SECURE_STORE_KEY);
+      // 先確認 SecureStore 現在存的還是這裡要清的那個（舊）token，不要無條件用
+      // key 刪除——如果清除期間新登入已經把新 token 寫進去，直接刪 key 會連新
+      // token 一起從本機儲存砍掉（記憶體鏡像不受影響，但下次冷啟動水合時會讀到
+      // 空值，變成「明明剛登入成功卻在重開 App 後被登出」）。
+      const currentlyStored = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+      if (currentlyStored === tokenAtCallTime) {
+        await SecureStore.deleteItemAsync(SECURE_STORE_KEY);
+      }
     } catch {
-      // 本機儲存刪除失敗也要繼續清記憶體鏡像，不能因此卡在已登入狀態。
+      // 本機儲存操作失敗也要繼續清記憶體鏡像，不能因此卡在已登入狀態。
     } finally {
-      setAuthToken(null);
-      setStatus("signedOut");
+      if (getAuthToken() === tokenAtCallTime) {
+        setAuthToken(null);
+        setStatus("signedOut");
+      }
     }
   };
 
@@ -95,8 +110,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await utils.user.getProfile.invalidate();
   };
 
+  useEffect(() => {
+    // trpc.ts 的 fetch 攔截器已經先判斷過「這次 401 是不是還在反映目前使用中的
+    // session」，只有真的相關時才會呼叫到這裡；元件層不需要（也不該）自己另外
+    // 判斷每個查詢各自的 error，那樣容易在多個元件同時觀察到同一個 401 時各自
+    // 重複觸發，見已知的坑第 26 條。
+    setUnauthorizedHandler(handleUnauthorized);
+    return () => setUnauthorizedHandler(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ status, signInWithGoogle, signOut, handleUnauthorized }),
+    () => ({ status, signInWithGoogle, signOut }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [status],
   );
