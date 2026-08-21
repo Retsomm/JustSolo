@@ -30,9 +30,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOutMutation = trpc.auth.signOut.useMutation();
 
   const clearLocalSession = async () => {
-    await SecureStore.deleteItemAsync(SECURE_STORE_KEY);
-    setAuthToken(null);
-    setStatus("signedOut");
+    try {
+      await SecureStore.deleteItemAsync(SECURE_STORE_KEY);
+    } catch {
+      // 本機儲存刪除失敗也要繼續清記憶體鏡像，不能因此卡在已登入狀態。
+    } finally {
+      setAuthToken(null);
+      setStatus("signedOut");
+    }
   };
 
   useEffect(() => {
