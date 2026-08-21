@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Caprasimo, Figtree } from "next/font/google";
 import { Providers } from "./providers";
 import { NavBar } from "@/components/NavBar";
@@ -19,6 +19,15 @@ const figtree = Figtree({
 export const metadata: Metadata = {
   title: "JustSolo | 一人友善餐廳搜尋",
   description: "幫 I 人找到真的有單人座位的餐廳，燒肉、中式、牛排、甜點通通找得到",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "JustSolo",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#b2622d",
 };
 
 // 在畫面第一次繪製前先套用使用者手動選過的主題（讀 localStorage），
