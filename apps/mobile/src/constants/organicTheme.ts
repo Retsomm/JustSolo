@@ -22,6 +22,9 @@ export const OrganicColors = {
     neutralTintText: "#474238",
     tabActive: "#8c491a",
     tabInactive: "#a19786",
+    // 跟網頁版 globals.css 的 --danger token 同一組數值（light/dark 各自一個），
+    // 不是另外挑的顏色。
+    danger: "#b3401f",
   },
   dark: {
     bg: "#2e2b25",
@@ -41,6 +44,7 @@ export const OrganicColors = {
     neutralTintText: "#dcd3c4",
     tabActive: "#f6a06b",
     tabInactive: "#a19786",
+    danger: "#f0733d",
   },
 } as const;
 
