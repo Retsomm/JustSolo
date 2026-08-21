@@ -26,6 +26,8 @@
 | 本機路徑 | `~/Projects/JustSolo` |
 | Git 分支策略 | **2026-08-19 起：所有變更 push 到 `dev` branch（不推 `main`），觸發 CodeRabbit code review** |
 | 推送前驗證方式 | **2026-08-19 修正版：改完程式碼、單元測試/typecheck 過了就停在工作目錄，等使用者本機測試 UI/功能確認 OK，才可以 commit+push。不是「Claude 先 push，使用者事後測」**（詳見文件最後「給接手對話的 AI 模型的提醒」，這條當天被使用者當面糾正過一次） |
+| 專案結構 | **2026-08-21 起改為 yarn workspaces monorepo**：`apps/web`（Next.js 網頁版，原本 repo 根目錄整個搬過去）、`apps/mobile`（Expo + EAS 手機版，新增，Milestone 1 = 純瀏覽功能，不含登入）、`packages/shared`（純邏輯 + 型別 + 整個 tRPC server 層＋Prisma，兩邊 App 共用）。根目錄只留 workspaces 設定＋文件，`.env`/`.env.example` 留在根目錄給兩個 workspace 共用讀取。詳見下方進度對照表「monorepo 轉換」那一列與「已知的坑」第 19-21 條 |
+| 手機版技術棧 | Expo SDK 57 + expo-router（file-based routing，`main: "expo-router/entry"`）+ React Native 0.86.2 + `@tanstack/react-query`/`@trpc/client`/`@trpc/react-query`（跟網頁版同一套 tRPC 客戶端模式，指向同一個 Next.js API）。**不含登入**（Google OAuth 在 RN 上要接 `expo-auth-session` 搭橋 next-auth 的 JWT session，留待下一輪），**不含地圖**（`react-native-maps` 是比網頁版 `leaflet` 重很多的原生依賴，Milestone 1 不需要） |
 
 ## 進度對照表
 
@@ -70,6 +72,7 @@
 | NavBar「登入」／「個人頁面」合併成同一顆按鈕 | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | 2026-08-20 使用者截圖指出：未登入時「個人頁面」連結跟「登入」按鈕同時並列顯示，但應該是同一顆按鈕依登入狀態切換文字/行為，不是兩個獨立按鈕。`NavBar.tsx` 拆掉原本的 `NavLinks`（`NAV_LINKS` 陣列含首頁/個人頁面兩個固定連結）＋`AuthButton`（只有登入/登出按鈕邏輯），改成 `HomeLink`（只管首頁，一律顯示）＋`ProfileOrLoginButton`（同一個位置：未登入顯示「登入」按鈕、點擊 `signIn("google")`；已登入顯示「個人頁面」連結，導向 `/profile`，比照首頁連結一樣有 `aria-current`/反色高亮）。兩者共用同一個 `navItemClassName(isActive)` helper 算樣式，避免重複維護兩份高亮邏輯。`NavBar.test.tsx` 的「NavBar 導覽連結」describe 整個重寫成 4 個測試（首頁一律顯示／未登入顯示登入按鈕不顯示個人頁面連結／已登入顯示個人頁面連結不顯示登入按鈕／已登入且在 `/profile` 時的 aria-current 高亮）。共 155 個測試全過；`tsc --noEmit`/`yarn lint`/`yarn build` 均乾淨。**Claude 沒有在瀏覽器實際看過合併後的按鈕切換效果**，依專案 git 紀律停在工作目錄未 commit，等使用者本機測試：未登入時只顯示「登入」（沒有「個人頁面」）、登入後同一個位置變成「個人頁面」且可以正常導覽、目前在個人頁面時有沒有正確反色高亮。 |
 | 個人頁面拆成「個人資料」／「我的收藏」兩個分頁＋收藏清單分頁按鈕 | ✅ 完成程式碼，⏸ 未在瀏覽器看過 | 2026-08-20 使用者要求：收藏資料太多會把登出按鈕擠到很底部，要拆成兩個分頁；收藏超過 10 筆也要加分頁按鈕。**架構**：比照 `RestaurantDetailView.tsx` 既有的分頁按鈕模式（`role="tablist"`/`role="tab"`/`aria-selected`），個人頁面新增「個人資料」（大頭貼/名稱/信箱/登出按鈕，內容固定不會變長）／「我的收藏」（收藏清單＋分頁）兩個分頁，預設顯示「個人資料」——這樣不管收藏幾筆，登出按鈕永遠在個人資料分頁的固定位置，不會被清單長度影響。**後端加分頁**：`favorite.list` 原本回傳整份收藏清單（不分頁），現在比照 `restaurantSearchService.ts` 的 `searchRestaurants` 同一套邏輯——`favoriteService.ts` 的 `listFavoriteRestaurants` 改吃 `page` 參數，重用 `RESTAURANT_PAGE_SIZE`（10 筆/頁）與 `src/lib/pagination.ts` 的 `paginate` 純函式，回傳型別從 `RestaurantSearchResultWithFriendliness[]` 改成 `PaginatedRestaurants`（跟首頁列表同一個型別）；`favorite.ts` router 的 `list` procedure 加上 `listFavoritesInputSchema`（`page` 欄位）；`useFavorites` hook 改吃 `page` 參數。**前端**：個人頁面重用既有的 `Pagination.tsx` 元件（跟首頁列表分頁是同一個元件，不重新做一套），`page` 是元件內部 local state，收藏清單超過一頁才會顯示分頁按鈕（`Pagination.tsx` 本身邏輯：`totalPages<=1` 不渲染）。單元測試：`favoriteService.test.ts` 的 `listFavoriteRestaurants` 測試改成斷言分頁後的回傳形狀，新增一個「12 筆收藏切出正確頁碼」的測試；`ProfilePage.test.tsx` 整份重寫（未登入/個人資料分頁預設顯示＋登出按鈕/切到我的收藏分頁的空清單與清單渲染/收藏超過一頁時顯示分頁按鈕），共 6 個測試。共 158 個測試全過；`tsc --noEmit`/`yarn lint`/`yarn build` 均乾淨。**Claude 沒有在瀏覽器實際看過分頁切換/收藏分頁按鈕的樣式**，依專案 git 紀律停在工作目錄未 commit，等使用者本機測試：兩個分頁按鈕切換是否正常、個人資料分頁的登出按鈕位置是否固定不受收藏筆數影響、收藏超過 10 筆時分頁按鈕是否正確出現並可以正常翻頁。**2026-08-20 使用者本機測試後追加 3 個小調整，均已完成並確認 OK**：(1) 窄螢幕時個人資料分頁的大頭貼/名稱/信箱/登出按鈕改成置中排列（`AvatarUploader.tsx`／`page.tsx` 加 `items-center sm:items-start`，寬螢幕維持原本並排）；(2) 使用者回報間距太擠，調大各元素間的 `gap`；(3) 收藏清單卡片的「移除收藏」按鈕從標題列右側移到卡片右下角（跟友善度徽章同一列），比照首頁列表卡片的既有排版，避免長店名擠壓分類標籤。**同一輪也修正一個延伸出來的排版 bug**：店名過長時原本會擠壓/覆蓋掉右側的分類標籤（`h2`/`h3`/`h1` 沒有 `min-w-0 flex-1`，flex item 預設不會縮小到比內容還窄，導致長文字不會提早換行），已在首頁列表卡片、個人頁面收藏清單卡片、詳情頁標題列三處統一補上 `min-w-0 flex-1`＋`items-start`（原本是 `items-center`），店名過長會自己換行，分類標籤永遠固定在區塊右上角。這些都是純 CSS/排版調整，不影響邏輯，158 個測試全過。 |
 | 地圖檢視（Phase 2 第一項） | ✅ 完成程式碼＋**使用者已本機測試確認 OK**（2026-08-20） | 2026-08-20 使用者選定 Phase 2 優先做這項，用 `EnterPlanMode` 規劃後實作。**架構**：`findRestaurants`（Client 層）本來就是「依篩選條件撈全部符合資料、不分頁」，只是回傳型別沒帶 `lat`/`lng`——補上這兩個欄位後，Service 層抽出共用的 `fetchFilteredRestaurants`，`searchRestaurants`（清單，加 `paginate`）跟新的 `getRestaurantMapMarkers`（地圖，加 `toMapMarkers` 濾掉無座標資料）都呼叫同一個共用函式，避免兩處各自組 Client 參數重蹈「漏傳篩選欄位」的坑（呼應已知的坑第 16 條）。`searchRestaurantsInputSchema` 拆出共用的 `restaurantFilterInputSchema`（不含 `page`），新的 `restaurant.mapMarkers` tRPC procedure 重用它。**前端**：新增 `leaflet`/`react-leaflet`/`react-leaflet-cluster` 依賴；`src/components/RestaurantMap.tsx` 用 `MapContainer`+`TileLayer`（OpenStreetMap）+`MarkerClusterGroup`+`Marker`+`Popup`；marker 故意不用 Leaflet 預設 PNG icon（Next.js 打包常見的路徑 404 問題），改用 `L.divIcon` 畫依 `soloSeatStatus` 上色的圓點（綠/灰/橘），一眼看出單人座位可信度；popup 文字**刻意用固定深色**（`text-gray-900`），不是會翻轉的 `text-foreground`——因為 Leaflet popup 背景固定白色、不隨 App 深色模式翻轉，用會翻轉的文字色深色模式下會白字疊白底看不見（跟已知的坑第 10 條同類但方向相反的情況，新記一筆避免以後在 Leaflet popup 這種「有自己固定背景色的第三方元件內容」裡誤用主題 token）。首頁 `page.tsx` 加「列表/地圖」切換鈕，`RestaurantMap` 用 `next/dynamic({ssr:false})` 動態載入（避免 Leaflet 存取 `window` 在 SSR 階段噴錯），`useRestaurantMapMarkers` 只有切到地圖檢視時才會 `enabled: true` 打 API。單元測試新增 `toMapMarkers`/`getRestaurantMapMarkers`（含接線測試）、`RestaurantMap.test.tsx`（mock `react-leaflet`/`react-leaflet-cluster`，比照既有慣例避免在 jsdom 裡真的渲染地圖）、`HomePage.test.tsx` 新增列表/地圖切換互動測試，共 71 個全過。`yarn build` 確認 `/` 仍能靜態預渲染，SSR 沒有因為動態載入 Leaflet 而噴錯；`yarn lint` 乾淨。使用者本機測試地圖圖磚顯示、marker 顏色/聚合、popup 連結皆確認 OK。 |
+| **monorepo 轉換 + Expo 手機版 Milestone 1（純瀏覽）** | ✅ 骨架程式碼完成＋本環境可驗證的部分全綠，⏸ **手機 App 實際在模擬器/實機上跑起來需要使用者驗證** | 2026-08-21 使用者要求開始開發手機版，參考 `~/Projects/TravelInTime` 的 Expo/EAS 設定慣例（但那個專案沒有後端、手機版完全獨立手動複製邏輯，不適合直接照抄程式碼共用方式）。用 `EnterPlanMode` 規劃後執行，過程分成三個部分：**(1) monorepo 骨架**：`git mv` 把原本 repo 根目錄的 Next.js App 整個搬進 `apps/web`，`src/server/**`＋純函式（`pagination`/`geo`/`priceLevel`/`soloSeatLabel`/`placePhotoUrl`）＋型別（`category`/`favorite`/`restaurant`/`soloSeatReport`/`userProfile`）＋`prisma/`＋匯入腳本搬進新建的 `packages/shared`；根目錄新增 workspaces `package.json`（`workspaces: ["apps/*", "packages/*"]`）＋各 workspace 專屬 `.gitignore`。**(2) `packages/shared` 內部拆分**：`restaurantSearchService.ts`／`soloSeatReportService.ts` 原本把純函式（`computeSoloFriendlinessScore`／`filterAndSortBySoloSeat`／`toMapMarkers`／`pickRandom`／`computeSoloSeatStatus` 等）跟 DB-dependent 的組合層函式（`searchRestaurants`／`submitSoloSeatReport` 等）混在同一個檔案，已拆成獨立的 `src/pure/restaurantFriendliness.ts`／`src/pure/soloSeatStatus.ts`，DB-dependent 的組合層改成反過來 import 這兩個純函式檔案——這樣手機版才能只 value-import `pure/`，完全不會被 Metro bundle 進 Prisma/`pg`。`src/index.ts` 是安全 barrel（只 export `pure/`＋`types/`），`AppRouter` 型別走深路徑 `@justsolo/shared/src/server/routers/_app` 的 **type-only** import。**(3) `apps/mobile` 新建**：`npx create-expo-app` 用官方預設模板（含 expo-router，Expo SDK 57），刪掉範例的 tabs/動畫 icon/demo 元件，保留可重用的主題原語（`ThemedText`/`ThemedView`/`useTheme`/`useColorScheme`/`Colors`/`Spacing`）；新增 `metro.config.js`（`watchFolders`/`resolver.nodeModulesPaths`/`disableHierarchicalLookup`，monorepo 標準寫法）；`app.json` 改成 JustSolo 品牌（`com.justsolo.app`）；`eas.json` 比照 TravelInTime 的 build profile 形狀；新增 `src/lib/apiBaseUrl.ts`（用 `expo-constants` 的 `hostUri` 抓開發機區網 IP，讓實機能連到 `yarn dev`）／`src/lib/trpc.ts`（跟網頁版 `providers.tsx` 同一套 `httpBatchLink`+`superjson` 模式，但用絕對網址、不需要 `SessionProvider`）；畫面：`app/index.tsx`（搜尋/篩選/清單，`FilterBar`+`RestaurantCard`+`Pagination`）、`app/restaurant/[id].tsx`（詳情頁，不含收藏/回報表單）。**驗證**：`yarn typecheck`（三個 workspace 都過）／`yarn test`（`apps/web` 86 個＋`packages/shared` 88 個，共 174 個全過，其中 `packages/shared` 的測試同時驗證了純函式拆分沒有拆錯欄位）／`yarn lint`／`yarn build`（Next.js production build，證明 `transpilePackages` 正確處理 `packages/shared` 原始 TS）均綠燈；額外用 `npx expo export --platform ios` 在沒有模擬器的情況下實測 Metro 真的能把整個手機版 App（含 `@justsolo/shared` 跨套件 import）打包成功（1346 個模組）。**Claude 完全沒辦法在本環境驗證手機 App 實際在模擬器/實機上的畫面/互動**，依專案 git 紀律停在工作目錄未 commit——使用者接手時要做：`cd apps/mobile && npx expo start`，用 iOS 模擬器或實機（同一區網）掃碼連線，確認能看到 `yarn dev` 本機資料庫的真實餐廳資料、篩選/搜尋/分頁互動正常、點卡片能進詳情頁。過程中修正了三個環境設定的坑（詳見「已知的坑」第 19-21 條）：packages/shared 內部改用 relative import（不能繼續用 `@/` alias，會跟消費端 workspace 自己的 `@/` alias 衝突）、next-auth 的 `Session` 型別擴充要在每個會碰到 tRPC `Context` 型別的 workspace 各自複製一份、yarn classic 混合不同 React 版本（Next.js 19.2.8 vs Expo SDK 57 釘的 19.2.3）時要用根目錄 `resolutions` 強制統一版本（不要用 `nohoist`，這個組合在這個專案的依賴圖下會讓 `yarn install` 直接噴 `ENOENT` 裝不起來）。 |
 
 ## 已知的坑（環境建置時踩過，未來不要重踩）
 
@@ -209,6 +212,71 @@
     公開 API 本身的限制，要看全部評論得去 Google Maps 本身。**教訓**：任何「總數」跟「實際
     可取得筆數」不一致的第三方 API 欄位，UI 文案要在數字旁邊講清楚這兩者的差異，不要讓使用者
     自己猜是不是我方漏抓資料。
+19. **TypeScript 的 `paths`/`@` alias 是整個編譯「程式」（program）共用一份，不是逐檔案各自
+    決定的**：`packages/shared` 自己的 `tsconfig.json` 也定義了一份
+    `"paths": { "@/*": ["./src/*"] }`（跟 `apps/web` 長得一模一樣），原本以為兩邊互不干擾。
+    實際上只要 `apps/web` 用深路徑 value/type import 了 `packages/shared/src/server/**`
+    底下任何一個檔案（例如 `import type { AppRouter } from "@justsolo/shared/src/server/routers/_app"`），
+    那個檔案（以及它遞迴 import 到的所有檔案，包含透過安全 barrel `@justsolo/shared` 拉進來的
+    `pure/`＋`types/` 全部）就會被塞進 **`apps/web` 自己的 TypeScript program**，用
+    **`apps/web` 自己的 `@/*` alias**（指向 `apps/web/src/*`）去解析那些檔案內部的 `@/` import
+    ——完全不會用 `packages/shared` 自己的 tsconfig，導致一長串
+    `Cannot find module '@/types/restaurant'` 之類的錯誤（因為 `apps/web/src` 底下根本沒有
+    這個檔案）。**這不是本專案獨有的 bug，是 TypeScript 在沒有用 project references（
+    `composite`+`references`，會多一道 declaration 產出的 build 步驟）的情況下，任何
+    「跨 workspace 直接 import 原始碼」的 monorepo 都會踩到的限制**。**修法**：`packages/shared`
+    自己不再是「無 build 步驟就能安全共用」的例外——它的 `src/server/**` 底下（會被
+    `apps/web`／`apps/mobile` 透過深路徑 import 到的所有檔案，也包含被安全 barrel `index.ts`
+    間接拉進去的 `src/pure/**`／`src/types/**`）**內部一律改用 relative import（`../types/x`），
+    不要用 `@/` alias**——因為 relative import 是用檔案在磁碟上的實際位置解析，跟哪個
+    workspace 的 tsconfig 在主導編譯完全無關，才能同時被三個 workspace 安全消費。
+    `packages/shared` 自己的 `tests/unit/*.test.ts` 因為只會被 `packages/shared` 自己的
+    `yarn workspace @justsolo/shared run typecheck`/`test` 單獨編譯（不會被其他 workspace
+    拉進去），**仍然可以繼續用 `@/` alias**，不用跟著改成 relative——只有真的會被跨
+    workspace 消費的 `src/` 底下才有這個限制，別誤判成整個套件都不能用 alias。
+20. **next-auth v5 的 `Session`/`JWT` 型別擴充（`declare module "next-auth" { interface Session
+    { user: { id: string } ... } } }`）是 ambient 模組擴充，只在它所屬的那個 TypeScript
+    program 裡生效**：`packages/shared/src/server/trpc.ts` 的 `Context = { session: Session |
+    null }` 跟所有 `protectedProcedure` router（`favorite.ts`/`soloSeatReport.ts`/`user.ts`）
+    寫的 `ctx.session.user.id` 都假設這個擴充已經生效（`Session.user` 從預設的 optional
+    變成必填），但這個擴充檔案原本只放在 `apps/web/src/types/next-auth.d.ts`（因為分類成
+    「web-only」），**沒有跟著 `src/server/**` 一起搬進 `packages/shared`**——單獨對
+    `packages/shared` 跑 `tsc --noEmit` 完全沒事（因為 `packages/shared` 自己的
+    tsconfig `include` 掃不到 `apps/web` 底下的檔案，反而不會觸發這個問題被隱藏起來），
+    但只要換成 `apps/web` 或 `apps/mobile` 把 `packages/shared/src/server/**`
+    拉進自己的 program 編譯（跟第 19 條同一種「跨 workspace 深路徑 import 原始碼」的情境），
+    這個 program 裡就找不到擴充，`Session.user` 打回預設的 optional，冒出一整排
+    `ctx.session.user' is possibly 'undefined'` 的錯誤。**修法**：這個 ambient
+    擴充檔案內容很短（15 行），**直接複製一份到 `packages/shared/src/types/next-auth.d.ts`
+    （給 `packages/shared` 自己單獨編譯時用）跟 `apps/mobile/src/types/next-auth.d.ts`
+    （milestone 1 沒有真的用到登入，但只要 deep-import 了 `AppRouter` 型別、遞迴碰到
+    `Context`，一樣需要這個擴充在場才能通過型別檢查）**，三個 workspace 各自一份、內容保持
+    一致——這類「只是型別擴充、沒有任何執行期程式碼」的 `.d.ts` 檔案，重複幾份換取每個
+    workspace 都能獨立、正確地做型別檢查，是比硬要弄一個共用來源更務實的取捨。
+21. **yarn classic（1.x）workspaces 混合不同 React 版本時，`nohoist` 不是安全的預設解法**：
+    `apps/web`（Next.js 16）釘死 `react@19.2.8`，`apps/mobile`（Expo SDK 57 官方模板）釘死
+    `react@19.2.3`——一開始以為兩個版本必須分開（RN 相關套件通常對 React 版本很敏感），
+    直接在根目錄 `package.json` 用 `"workspaces": { "packages": [...], "nohoist":
+    ["@justsolo/mobile/**"] }` 把整個手機版依賴樹隔離不讓它跟其他 workspace 共用 hoist。
+    **實測結果：這個組合讓 `yarn install` 直接失敗**（`ENOENT: no such file or directory,
+    lstat '.../packages/shared/node_modules/@trpc'`），完整清掉所有 `node_modules` 重裝
+    也一樣會炸，這是 yarn 1.x 的 `nohoist` 在「有 workspace 互相依賴（`apps/mobile` 依賴
+    `@justsolo/shared`）」的圖形下的已知脆弱點，不是本機環境髒污的問題。**真正的修法更簡單**：
+    檢查 `react-native`（0.86.2）實際宣告的 peer dependency 是 `"react": "^19.2.3"`
+    （caret range），代表 `19.2.8` 一樣滿足這個範圍，**兩邊根本不需要不同版本**——改成在
+    根目錄 `package.json` 加 `"resolutions": { "react": "19.2.8", "react-dom": "19.2.8" }`
+    強制全樹統一成單一版本，完全不用碰 `workspaces`/`nohoist` 的形狀，`yarn install` 正常
+    跑完，`react`/`react-dom` 在 `node_modules` 底下也確認只有一份（沒有到處都是 nested
+    `node_modules/react` 造成 `apps/web` 的 Vitest 測試在 jsdom 裡混到兩份不同 React
+    instance，出現 `useContext` 相關的 `Invalid hook call` 系列錯誤——這是中途曾經用
+    「只把 `next` 加回根目錄 devDependencies 逼它 hoist」這個更小的修法時，意外把
+    `react`/`react-dom` 的 hoist 決策也連帶打亂而踩到的另一個真實錯誤，兩者一起用
+    `resolutions` 統一版本後才同時解決）。**教訓**：yarn classic 遇到「不同 workspace
+    宣告不同版本的同一個套件」時，**先查那個套件的 peer dependency range 是否其實互相相容
+    （這裡是 `^19.2.3` 涵蓋 `19.2.8`）**，能用 `resolutions` 收斂成單一版本就優先這樣做，
+    不要一遇到版本數字不同就直接跳去 `nohoist`——`nohoist` 該留給「這個套件本質上就不能
+    共用單一版本」（例如真的需要兩個不相容 major 版本並存）的情境，先確認過 caret/tilde
+    range 真的無法相容再用。
 
 ## 下次接續開發時，建議的下一步（依優先序）
 
@@ -237,6 +305,14 @@
 13. 手動標註前 10-20 間熟悉的店（見上方第 9 項，尚未做，可以搭配友善度徽章一起用
     Prisma Studio 手動測看看不同分數/標籤呈現效果）
 14. Phase 3（即時空位、推薦系統）尚未規劃細節，等 Phase 2 全部使用者驗證過後再討論
+15. **手機版 Milestone 1（monorepo + Expo 純瀏覽功能）2026-08-21 程式碼完成，⏸ 等使用者
+    本機用模擬器/實機實測**：`cd apps/mobile && npx expo start`，確認清單/篩選/搜尋/分頁/
+    詳情頁都能正常抓到 `yarn dev` 本機資料庫的資料，深淺色主題下版面是否清楚。使用者驗證
+    OK 之後才能 commit 這整輪 monorepo 轉換 + 手機版骨架的變更（目前全部停在工作目錄未
+    commit，見上方進度對照表「monorepo 轉換 + Expo 手機版 Milestone 1」那一列）
+16. 手機版 Milestone 2（尚未規劃）：Google OAuth 登入（`expo-auth-session` 搭橋 next-auth
+    JWT session）、收藏、單人座位回報、個人頁面、地圖檢視——這些都刻意排除在 Milestone 1
+    之外，等使用者測過純瀏覽功能、決定要不要繼續再另外規劃
 
 ## 給接手對話的 AI 模型的提醒
 
