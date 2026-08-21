@@ -6,7 +6,8 @@
   "workspaces": ["apps/*", "packages/*"],
   "resolutions": {
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "@trpc/server": "11.18.0"
   },
   "scripts": {
     "dev": "yarn workspace @justsolo/web dev",
