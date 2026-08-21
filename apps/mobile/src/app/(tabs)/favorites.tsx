@@ -14,7 +14,7 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { useOrganicTheme } from "@/hooks/useOrganicTheme";
 import { FontFamily, OrganicRadius, OrganicSpacing } from "@/constants/organicTheme";
 
-export default function FavoritesTabScreen() {
+const FavoritesTabScreen = () => {
   const theme = useOrganicTheme();
   const router = useRouter();
   const { status, signInWithGoogle } = useAuth();
@@ -82,7 +82,9 @@ export default function FavoritesTabScreen() {
       )}
     </SafeAreaView>
   );
-}
+};
+
+export default FavoritesTabScreen;
 
 const styles = StyleSheet.create({
   safeArea: {

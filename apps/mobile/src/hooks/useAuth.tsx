@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import * as SecureStore from "expo-secure-store";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { useQueryClient } from "@tanstack/react-query";
+import { getQueryKey } from "@trpc/react-query";
 
 import { trpc } from "@/lib/trpc";
 import { getAuthToken, setAuthToken } from "@/lib/authToken";
@@ -26,6 +28,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const utils = trpc.useUtils();
+  const queryClient = useQueryClient();
   const signInMutation = trpc.auth.signInWithGoogle.useMutation();
   const signOutMutation = trpc.auth.signOut.useMutation();
 
@@ -49,7 +52,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 本機儲存操作失敗也要繼續清記憶體鏡像，不能因此卡在已登入狀態。
     } finally {
       if (getAuthToken() === tokenAtCallTime) {
+        // 先清 token 再清 query cache：favorite.list/isFavorited/getProfile 的
+        // query key 沒有帶 userId，帳號 A 登出、帳號 B 緊接登入時如果只 invalidate
+        // （標記過期、背景重抓），畫面會先閃一下 A 的舊快取才被蓋掉；用
+        // queryClient.removeQueries 把快取資料整筆刪除（不是只標記過期），且要在
+        // setStatus("signedOut") 之前完成，避免下一次 enabled 條件變 true 時還讀得到
+        // 上一個帳號的資料。token 先清是為了讓移除快取當下若剛好有掛載中的查詢
+        // 觸發重抓，也不會帶著舊 token 打出去——沒有 token 的 401 不會被 trpc.ts
+        // 攔截器誤判成需要處理的 unauthorized 事件（見 headers()/fetch 攔截器裡
+        // `tokenForThisRequest !== null` 的判斷），這種情況下最多只是多打一次
+        // 沒有實質影響的請求。
         setAuthToken(null);
+        const queryKeysToClear = [
+          getQueryKey(trpc.favorite.list),
+          getQueryKey(trpc.favorite.isFavorited),
+          getQueryKey(trpc.user.getProfile),
+        ];
+        await Promise.all(queryKeysToClear.map((queryKey) => queryClient.cancelQueries({ queryKey })));
+        queryKeysToClear.forEach((queryKey) => queryClient.removeQueries({ queryKey }));
         setStatus("signedOut");
       }
     }
@@ -98,8 +118,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch {
       // 伺服器端撤銷失敗不該卡住本機登出，裝置上的 token 一律清除。
     } finally {
+      // user.getProfile 的快取已經在 clearLocalSession() 裡用 removeQueries 清掉，
+      // 不需要再額外 invalidate 一次。
       await clearLocalSession();
-      await utils.user.getProfile.invalidate();
     }
   };
 
@@ -107,7 +128,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // 再對 Google 發登出請求，只需清本機 session 讓畫面回到未登入狀態。
   const handleUnauthorized = async () => {
     await clearLocalSession();
-    await utils.user.getProfile.invalidate();
   };
 
   useEffect(() => {
