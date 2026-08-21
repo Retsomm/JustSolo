@@ -87,6 +87,13 @@
   --danger: #f0733d;
 }
 
+/* 全站文字偏小（多數內文用 text-sm，等於瀏覽器預設 16px 下只有 14px），
+   透過調高 root font-size 讓 Tailwind 所有 rem 制文字尺寸等比放大，
+   不用逐一改每個元件的 text-xs/sm/base/lg/xl class。 */
+html {
+  font-size: 112.5%; /* 16px -> 18px */
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

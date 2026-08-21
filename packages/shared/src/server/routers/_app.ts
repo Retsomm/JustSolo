@@ -5,6 +5,7 @@ import { districtRouter } from "./district";
 import { soloSeatReportRouter } from "./soloSeatReport";
 import { favoriteRouter } from "./favorite";
 import { userRouter } from "./user";
+import { authRouter } from "./auth";
 
 export const appRouter = router({
   restaurant: restaurantRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   soloSeatReport: soloSeatReportRouter,
   favorite: favoriteRouter,
   user: userRouter,
+  auth: authRouter,
 });
 
 export type AppRouter = typeof appRouter;

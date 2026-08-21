@@ -74,6 +74,7 @@
 | 地圖檢視（Phase 2 第一項） | ✅ 完成程式碼＋**使用者已本機測試確認 OK**（2026-08-20） | 2026-08-20 使用者選定 Phase 2 優先做這項，用 `EnterPlanMode` 規劃後實作。**架構**：`findRestaurants`（Client 層）本來就是「依篩選條件撈全部符合資料、不分頁」，只是回傳型別沒帶 `lat`/`lng`——補上這兩個欄位後，Service 層抽出共用的 `fetchFilteredRestaurants`，`searchRestaurants`（清單，加 `paginate`）跟新的 `getRestaurantMapMarkers`（地圖，加 `toMapMarkers` 濾掉無座標資料）都呼叫同一個共用函式，避免兩處各自組 Client 參數重蹈「漏傳篩選欄位」的坑（呼應已知的坑第 16 條）。`searchRestaurantsInputSchema` 拆出共用的 `restaurantFilterInputSchema`（不含 `page`），新的 `restaurant.mapMarkers` tRPC procedure 重用它。**前端**：新增 `leaflet`/`react-leaflet`/`react-leaflet-cluster` 依賴；`src/components/RestaurantMap.tsx` 用 `MapContainer`+`TileLayer`（OpenStreetMap）+`MarkerClusterGroup`+`Marker`+`Popup`；marker 故意不用 Leaflet 預設 PNG icon（Next.js 打包常見的路徑 404 問題），改用 `L.divIcon` 畫依 `soloSeatStatus` 上色的圓點（綠/灰/橘），一眼看出單人座位可信度；popup 文字**刻意用固定深色**（`text-gray-900`），不是會翻轉的 `text-foreground`——因為 Leaflet popup 背景固定白色、不隨 App 深色模式翻轉，用會翻轉的文字色深色模式下會白字疊白底看不見（跟已知的坑第 10 條同類但方向相反的情況，新記一筆避免以後在 Leaflet popup 這種「有自己固定背景色的第三方元件內容」裡誤用主題 token）。首頁 `page.tsx` 加「列表/地圖」切換鈕，`RestaurantMap` 用 `next/dynamic({ssr:false})` 動態載入（避免 Leaflet 存取 `window` 在 SSR 階段噴錯），`useRestaurantMapMarkers` 只有切到地圖檢視時才會 `enabled: true` 打 API。單元測試新增 `toMapMarkers`/`getRestaurantMapMarkers`（含接線測試）、`RestaurantMap.test.tsx`（mock `react-leaflet`/`react-leaflet-cluster`，比照既有慣例避免在 jsdom 裡真的渲染地圖）、`HomePage.test.tsx` 新增列表/地圖切換互動測試，共 71 個全過。`yarn build` 確認 `/` 仍能靜態預渲染，SSR 沒有因為動態載入 Leaflet 而噴錯；`yarn lint` 乾淨。使用者本機測試地圖圖磚顯示、marker 顏色/聚合、popup 連結皆確認 OK。 |
 | **monorepo 轉換 + Expo 手機版 Milestone 1（純瀏覽）** | ✅ 骨架程式碼完成＋本環境可驗證的部分全綠＋**使用者已用模擬器/實機驗證確認正常**（見下一列 2026-08-21 稍晚的修正與 commit 770b072「已在裝置上測試確認正常」） | 2026-08-21 使用者要求開始開發手機版，參考 `~/Projects/TravelInTime` 的 Expo/EAS 設定慣例（但那個專案沒有後端、手機版完全獨立手動複製邏輯，不適合直接照抄程式碼共用方式）。用 `EnterPlanMode` 規劃後執行，過程分成三個部分：**(1) monorepo 骨架**：`git mv` 把原本 repo 根目錄的 Next.js App 整個搬進 `apps/web`，`src/server/**`＋純函式（`pagination`/`geo`/`priceLevel`/`soloSeatLabel`/`placePhotoUrl`）＋型別（`category`/`favorite`/`restaurant`/`soloSeatReport`/`userProfile`）＋`prisma/`＋匯入腳本搬進新建的 `packages/shared`；根目錄新增 workspaces `package.json`（`workspaces: ["apps/*", "packages/*"]`）＋各 workspace 專屬 `.gitignore`。**(2) `packages/shared` 內部拆分**：`restaurantSearchService.ts`／`soloSeatReportService.ts` 原本把純函式（`computeSoloFriendlinessScore`／`filterAndSortBySoloSeat`／`toMapMarkers`／`pickRandom`／`computeSoloSeatStatus` 等）跟 DB-dependent 的組合層函式（`searchRestaurants`／`submitSoloSeatReport` 等）混在同一個檔案，已拆成獨立的 `src/pure/restaurantFriendliness.ts`／`src/pure/soloSeatStatus.ts`，DB-dependent 的組合層改成反過來 import 這兩個純函式檔案——這樣手機版才能只 value-import `pure/`，完全不會被 Metro bundle 進 Prisma/`pg`。`src/index.ts` 是安全 barrel（只 export `pure/`＋`types/`），`AppRouter` 型別走深路徑 `@justsolo/shared/src/server/routers/_app` 的 **type-only** import。**(3) `apps/mobile` 新建**：`npx create-expo-app` 用官方預設模板（含 expo-router，Expo SDK 57），刪掉範例的 tabs/動畫 icon/demo 元件，保留可重用的主題原語（`ThemedText`/`ThemedView`/`useTheme`/`useColorScheme`/`Colors`/`Spacing`）；新增 `metro.config.js`（`watchFolders`/`resolver.nodeModulesPaths`/`disableHierarchicalLookup`，monorepo 標準寫法）；`app.json` 改成 JustSolo 品牌（`com.justsolo.app`）；`eas.json` 比照 TravelInTime 的 build profile 形狀；新增 `src/lib/apiBaseUrl.ts`（用 `expo-constants` 的 `hostUri` 抓開發機區網 IP，讓實機能連到 `yarn dev`）／`src/lib/trpc.ts`（跟網頁版 `providers.tsx` 同一套 `httpBatchLink`+`superjson` 模式，但用絕對網址、不需要 `SessionProvider`）；畫面：`app/index.tsx`（搜尋/篩選/清單，`FilterBar`+`RestaurantCard`+`Pagination`）、`app/restaurant/[id].tsx`（詳情頁，不含收藏/回報表單）。**驗證**：`yarn typecheck`（三個 workspace 都過）／`yarn test`（`apps/web` 86 個＋`packages/shared` 88 個，共 174 個全過，其中 `packages/shared` 的測試同時驗證了純函式拆分沒有拆錯欄位）／`yarn lint`／`yarn build`（Next.js production build，證明 `transpilePackages` 正確處理 `packages/shared` 原始 TS）均綠燈；額外用 `npx expo export --platform ios` 在沒有模擬器的情況下實測 Metro 真的能把整個手機版 App（含 `@justsolo/shared` 跨套件 import）打包成功（1346 個模組）。**Claude 完全沒辦法在本環境驗證手機 App 實際在模擬器/實機上的畫面/互動**，當時依專案 git 紀律停在工作目錄未 commit；**後續使用者已用模擬器/實機實測，回報的問題見下一列，修正後已確認正常並隨 commit 33a15a2／770b072 進了 git 歷史**。過程中修正了三個環境設定的坑（詳見「已知的坑」第 19-21 條）：packages/shared 內部改用 relative import（不能繼續用 `@/` alias，會跟消費端 workspace 自己的 `@/` alias 衝突）、next-auth 的 `Session` 型別擴充要在每個會碰到 tRPC `Context` 型別的 workspace 各自複製一份、yarn classic 混合不同 React 版本（Next.js 19.2.8 vs Expo SDK 57 釘的 19.2.3）時要用根目錄 `resolutions` 強制統一版本（不要用 `nohoist`，這個組合在這個專案的依賴圖下會讓 `yarn install` 直接噴 `ENOENT` 裝不起來）。 |
 | **手機版：修正資料載入失敗＋改用 ui-app 的 Organic 設計** | ✅ 程式碼完成＋本環境可驗證的部分全綠＋**使用者已重新原生建置並用模擬器/實機驗證確認正常**（含後續 commit 770b072 修正的頂部安全區重疊問題，commit 訊息「已在裝置上測試確認正常」） | 2026-08-21（同一天稍晚）使用者實測回報兩個問題：(1) 畫面卡在轉圈圈、資料載入失敗；(2) 手機版應該要用 `apps/web/ui-app` 裡的設計稿，結果 Claude 上一輪完全沒去看那份設計、憑感覺用 Expo 模板預設樣式刻畫面。**問題 (1) 根因**：`resolveApiBaseUrl()` 沒有處理 Android 模擬器（AVD）的網路——AVD 的虛擬網路下 `localhost` 指向模擬器自己，連不到開發機，且原本的 tRPC `httpBatchLink` 沒有逾時設定，連不上就無限轉圈，不會變成看得到的錯誤。已修正：加入 `expo-device` 判斷 `Platform.OS==="android" && !Device.isDevice` 時改用 Android 模擬器保留位址 `10.0.2.2`；`trpc.ts` 的 `httpBatchLink` 加上 `AbortController` 8 秒逾時，請求真的連不上時會變成 `isError`，不會無限 loading。**問題 (2)**：直接讀 `apps/web/ui-app/project/App.dc.html`（唯一用 `ios-frame.jsx` 包住、真正代表「手機 App」的設計稿——`Home.dc.html`/`Detail.dc.html`/`Map.dc.html`/`Profile.dc.html` 其實是**網頁版**的重新設計，命名容易混淆但不是手機版設計）跟它引用的 Organic 設計系統 CSS（`_ds/organic-*/styles.css`）取得色票/字型/圓角/間距的精確數值，另外發現 `apps/web/src/app/page.tsx`／`RestaurantDetailView.tsx` 早就已經照這份設計重構過（`bg-surface`/`text-accent`/`rounded-3xl`/一次推薦一家＋換一家＋前往看看的互動模式），比對設計稿本身更精確，於是直接照著網頁版現有的真實互動邏輯（`useRestaurantPick`＋`excludeIds` 洗牌、篩選收合面板、「或查看完整列表」展開/收合、詳情頁 5 個分頁：總覽/菜單/評論/單人友善/圖片）在 RN 重新實作，不是照抄一次舊有的、只做篩選+清單的陽春版面。新增 `src/constants/organicTheme.ts`（色票/圓角/間距，light/dark 兩組，dark 數值取自 `App.dc.html` 手動切換 dark 時用的那組 token）、`useOrganicTheme` hook；新增 `expo-router` 的 `(tabs)` 分頁群組（首頁/地圖/收藏/我的，比照設計稿的底部導覽列，只有首頁這一輪功能完整，其餘三個是「這一輪還沒開放」的靜態提示畫面，因為都需要登入或是延後的功能）；新增 `react-native-svg`（畫底部導覽列跟按鈕圖示，path 資料照抄設計稿）、`@expo-google-fonts/caprasimo`＋`@expo-google-fonts/figtree`（設計稿指定的標題/內文字型）；新增 `FriendlinessBadge`／`StatusTag`／`Button`／`PlaceDetailsSection`（含 `useRestaurantPlaceDetails` hook、`buildAbsolutePlacePhotoUrl` 幫 `packages/shared` 算出的相對路徑照片網址補上手機版的 API origin）等元件，整個 Home／Detail 畫面重寫成跟網頁版對齊的互動模式。**過程中的另一個坑**：`npx expo install expo-device`／`react-native-svg` 這類指令**會把根目錄 `resolutions` 鎖的 `react`/`react-dom` 版本改回 Expo SDK 原本釘的 19.2.3**（`expo install` 內部似乎沒有照 yarn 的 `resolutions` 走），每次跑完 `expo install` 都要回根目錄重新 `yarn install` 一次把版本拉回 19.2.8，否則會重新掉回已知的坑第 21 條那個 React 版本分裂問題（詳見已知的坑第 22 條）。**驗證**：`yarn typecheck`（三個 workspace）／`yarn test`（174 個）／`yarn lint`／`npx expo export --platform ios`（Metro 打包成功，1516 個模組，含新增的字型/SVG）均綠燈。新增了兩個原生依賴（`react-native-svg`／`expo-device`），需要重新原生建置才能生效——**使用者已完成重新原生建置並實測確認畫面/互動正常，另外回報並在同一輪（commit 770b072）修正了頂部安全區被狀態列遮擋的問題、新增全頁共用的主題切換按鈕，已在裝置上測試確認正常，隨 commit 進了 git 歷史**。 |
+| **手機版 Milestone 2 第一步：Google 登入（原生 SDK）** | ✅ 完成程式碼＋**使用者已在 iOS/Android 模擬器實測確認登入／登出／殺掉 App 重開後仍維持登入狀態皆正常**（2026-08-21） | 2026-08-21。用 `EnterPlanMode` 規劃，跟使用者確認技術方案選 `@react-native-google-signin/google-signin`（原生 SDK，非 `expo-auth-session` 通用瀏覽器流程）。**後端**：`packages/shared` 新增 `pure/googleIdTokenPayload.ts`（純函式，從已驗證的 Google id_token payload 取 email/name/picture）、`server/clients/googleIdTokenClient.ts`（`jose` 驗證 id_token 簽章/發行者/audience，audience 沿用既有的 Web OAuth Client ID `GOOGLE_CLIENT_ID`，不用新增後端 env）、`server/services/mobileSessionService.ts`（`mintMobileSessionToken`/`verifyMobileSessionToken` 用 `jose` 簽發/驗證這個 App 自己的長效 session JWT，`signInWithGoogleIdToken` 組合層串起驗證→`registerOrUpdateUser`→簽發，比照已知的坑 #16 補了 wiring test 並刻意 revert 一次驗證測試會紅燈）、`types/auth.ts`＋`server/routers/auth.ts`（`auth.signInWithGoogle` public procedure，註冊進 `_app.ts`）。`apps/web/src/app/api/trpc/[trpc]/route.ts` 的 `createContext` 改成先檢查 `Authorization: Bearer` header（`verifyMobileSessionToken` 驗證成功就組出 `Session` 形狀），沒有才落回原本的 `auth()` cookie 路徑，網頁版行為不變。**手機版**：新增 `@react-native-google-signin/google-signin`／`expo-secure-store`（`npx expo install`），`app.json` 加 config plugin（`iosUrlScheme` 先放語法合法的佔位字串，等使用者申請完 iOS OAuth Client 才能填真值——這個套件的 config plugin 會在讀取 app.json 時就驗證格式必須以 `com.googleusercontent.apps` 開頭，隨便的佔位字串會讓 `expo lint`/`expo export`/`expo start` 全部炸掉，踩過一次才發現）；新增 `src/lib/authToken.ts`（模組層級記憶體鏡像，給 `trpc.ts` 的 `httpBatchLink` `headers()` 同步讀取用，因為 `expo-secure-store` 是非同步 API）、`src/hooks/useAuth.tsx`（`AuthProvider`/`useAuth`，簽入用 `GoogleSignin.signIn()` 拿 `idToken`→呼叫 `trpc.auth.signInWithGoogle`→存 token 進 `SecureStore`）；`(tabs)/profile.tsx` 從 `ComingSoonScreen` 佔位改成真正的登入/已登入畫面（用既有的 `user.getProfile` procedure，網頁版個人頁面已經在用）。這輪刻意排除收藏/回報/個人資料編輯的手機版 UI（後端 procedure 都已存在只依賴 `ctx.session.user.id`，之後接上不用再動後端）。**過程中額外踩到且已修正的坑**：新增 `jose` 直接依賴觸發 yarn hoisting 分裂，導致完全不相關的檔案冒出 implicit-any 型別錯誤，詳見已知的坑第 24 條（這條坑比第 21/22 條更隱晦，因為報錯的檔案位置跟真正原因完全對不上）。**驗證**：`yarn typecheck`（三個 workspace）／`yarn test`（`apps/web` 86＋`packages/shared` 96，新增 `googleIdTokenPayload.test.ts`/`mobileSessionService.test.ts` 共 8 個）／`yarn lint`（含 `apps/mobile` 首次跑 `expo lint` 自動產生 `eslint.config.js`）／`yarn build`／`npx expo export --platform ios`（Metro 打包成功，1531 個模組）均綠燈，且是在完整清空 `node_modules` 重裝、確認 hoisting 穩定之後的乾淨結果，不是偶然一次過。**Claude 完全沒辦法在本環境驗證原生登入流程本身**，依專案 git 紀律停在工作目錄未 commit。使用者接手完成：(1) Google Cloud Console 新建 iOS／Android OAuth Client（Bundle ID／package 皆為 `com.justsolo.app`，Android 另需 debug SHA-1）填入 `.env`／`app.json`；(2) `npx expo prebuild --clean` 後 `expo run:ios`/`expo run:android` 重新原生建置；(3) 實機/模擬器測試。過程中額外抓到並修正兩個環境設定的坑（詳見已知的坑第 25 條）：`apps/mobile` 原本沒有任何機制讀取根目錄 `.env`（跟 `apps/web` 不同，`apps/web` 的 script 有包 `dotenv -e ../../.env --`），導致 `EXPO_PUBLIC_GOOGLE_*` 這類 env var 在 App 裡永遠是 `undefined`——已補上 `dotenv-cli` 包 `apps/mobile/package.json` 的 `start`/`ios`/`android`/`web` script；另外 `apps/mobile/package.json` 裡 `@react-native-google-signin/google-signin`／`expo-secure-store` 這兩個依賴曾經在多輪 `node_modules` 清空重裝的過程中從 package.json 裡意外消失（物理檔案還在 node_modules 所以 typecheck 沒抓到，直到原生建置後在裝置上出現 `TurboModuleRegistry` 找不到模組的錯誤才發現），已用 `npx expo install` 補回並確認 `git diff` 後穩定。**使用者已完成上述三步並在 iOS／Android 模擬器實測，登入、登出、殺掉 App 重開後仍維持登入狀態三項皆確認正常。** |
 
 ## 已知的坑（環境建置時踩過，未來不要重踩）
 
@@ -306,6 +307,61 @@
     edge case 處理），如果網頁版已經做過同一份設計的實作，**優先照抄網頁版元件的實際邏輯**
     （不是重新從 `.dc.html` 生語法），只在網頁版沒做過的地方才回頭查 `.dc.html`／
     設計系統 CSS（`_ds/organic-*/styles.css`）補色票/字型/間距的精確數值。
+24. **yarn classic 的 hoisting 對「新增一個原本就已經是透過別的套件間接引入的套件」也很敏感，
+    出問題時會偽裝成完全不相關檔案的型別錯誤**：2026-08-21 手機版 Google 登入這輪，`jose`
+    這個套件本來就已經透過 `next-auth`（`packages/shared` 既有的依賴）間接被安裝、程式碼裡
+    直接 `import` 也完全能正常 resolve/typecheck，但因為想比照專案慣例明確宣告直接依賴，
+    在 `packages/shared/package.json` 加了一行 `"jose": "^6.2.9"`。這個看似無害的動作
+    卻讓 `yarn install` 之後 `@trpc/server` 不再 hoist 到根目錄 `node_modules`（改成
+    分別 nest 進 `apps/web/node_modules` 與 `packages/shared/node_modules`），接著造成
+    **完全沒被這次改動碰過的檔案**（`apps/web/src/app/page.tsx`／`ProfileView.tsx`／
+    `PlaceDetailsSection.tsx`，甚至後來連 `apps/mobile` 對應元件）在 `.map((x) => ...)`
+    這種地方冒出 `TS7006: Parameter 'x' implicitly has an 'any' type`——因為這些元件都是
+    透過 `trpc.xxx.useQuery()` 拿資料，型別一路從 `AppRouter`（type-only 深路徑 import 自
+    `packages/shared/src/server/routers/_app`）推導過來，`@trpc/server` 的型別在
+    hoisting 分裂後推導鏈斷掉，整條查詢結果的型別悄悄退化成 `any`，且**不會在 import
+    那一行報錯**，只會在下游用到那個值的地方冒出語意上完全不相關的 `implicit any`，非常
+    容易誤判成那些檔案本身的問題去改程式碼。**排查方法**：`ls node_modules/@trpc/` 檢查
+    `server` 是不是跟 `client`／`react-query` 一樣在根目錄（三個都應該同時出現在同一層），
+    如果 `server` 不見了（被 nest 進某個 workspace 自己的 `node_modules` 裡）就是這個問題；
+    確認方式是**用 `git stash`／逐一 revert 可疑的 `package.json` 改動 + 完整清掉
+    `node_modules` 重新 `yarn install`**，二分排查是哪個依賴異動觸發的，不要直接對著
+    報錯的檔案本身加型別標註（那只是治標，且可能掩蓋了「同一條 hoisting 分裂」還在影響
+    其他還沒踩到的檔案）。**修法**：`packages/shared/package.json` 移除那行明確宣告的
+    `"jose"`（改回單純依賴 `next-auth` 間接帶入的版本，程式碼裡照樣能直接 `import "jose"`
+    正常用，TypeScript／執行期都沒問題），另外在根目錄 `package.json` 的 `resolutions`
+    加一條 `"@trpc/server": "11.18.0"`（釘死成跟 `@trpc/client`/`@trpc/react-query`
+    完全一致的版本字串，不用 caret）讓它穩定 hoist 到根目錄——這條 resolutions 在這次
+    排查中被驗證是必要的，拿掉它同一類 implicit-any 錯誤會在另一個 workspace 重新出現，
+    不是可有可無的殘留設定。**教訓**：monorepo 裡改 `package.json` 的依賴清單（即使只是
+    把一個「反正已經能用」的間接依賴明確宣告出來，沒有改任何程式邏輯），也要當作有風險的
+    改動看待，改完務必完整跑一次 `yarn typecheck`（含所有 workspace），不能只看自己直接
+    改的那個 workspace 過了就結束；**清 node_modules 重裝時，這個沙箱環境的 `rm -rf`
+    被封鎖，改用 `find <dir> -depth -delete`（等效於 `rm -rf` 但走 `find` 的參數）**，
+    且 `yarn install`／`yarn install --check-files`／`yarn install --force` 三者對「已存在
+    但物理佈局跟 lockfile 邏輯不一致」的 node_modules 修復力道不同（`--check-files` 有時
+    能修、有時不能），**最可靠的是先完整清掉 node_modules 再 `yarn install`**，遇到同一類
+    hoisting 問題不要迷信輕量修法能穩定收斂。
+25. **`apps/mobile` 預設不會讀根目錄 `.env`，`EXPO_PUBLIC_*` 這類 env var 在 App 裡會是
+    `undefined`，且 Metro/Expo 打包不報錯、只在執行期悄悄拿到空值**：`apps/web` 的
+    `dev`/`build`/`start` script 一開始就有包 `dotenv -e ../../.env --`（見 `apps/web/
+    package.json`），但 `create-expo-app` 產生的 `apps/mobile/package.json` 的
+    `start`/`ios`/`android`/`web` script 完全沒有這層——Expo CLI 內建的 `@expo/env`
+    只會抓「執行指令當下的 cwd」（也就是 `apps/mobile` 自己）底下的 `.env` 檔案，monorepo
+    根目錄的 `.env` 完全不在它的搜尋範圍內。2026-08-21 Google 登入這輪踩到：
+    `GoogleSignin.configure({ webClientId, iosClientId })` 兩個值都吃到 `undefined`，
+    原生 SDK 讓使用者照樣能選帳號登入（不會報錯／不會崩潰），但拿到的 `idToken` 永遠是
+    `null`，症狀完全不像「環境變數沒讀到」，很容易誤判成 OAuth Client 設定錯誤去查
+    Google Cloud Console。**修法**：`apps/mobile/package.json` 加 `dotenv-cli` 依賴，
+    比照 `apps/web` 把四個 script 都包成 `dotenv -e ../../.env -- expo start`／
+    `expo run:ios` 等——**但要用 `yarn ios`/`yarn start` 這種會走 package.json script
+    的指令，直接下 `npx expo run:ios`/`npx expo start` 會整層繞過去，一樣讀不到**，
+    這點在同一輪除錯裡又額外繞了一次才發現。**排查心法**：裝置能力/原生 SDK
+    「有反應但關鍵欄位是 null/undefined」時，第一步先用最小重現（例如在 `configure()`
+    前面暫時加一行 `console.log` 印出實際吃到的設定值）把「環境變數有沒有真的送進 App」
+    跟「原生 SDK/後端邏輯本身有沒有問題」切開來看，不要直接跳去查第三方主控台設定
+    ——這是延續上面「裝置能力 API 完全沒反應」那條全域教訓的同一套方法論，這次的變體是
+    「有反應但關鍵欄位是空的」。
 
 ## 下次接續開發時，建議的下一步（依優先序）
 
@@ -341,9 +397,13 @@
     切換按鈕（commit 770b072「已在裝置上測試確認正常」）。已隨 commit 33a15a2／770b072
     進入 git 歷史，見上方進度對照表「monorepo 轉換 + Expo 手機版 Milestone 1」＋「手機版：
     修正資料載入失敗＋改用 ui-app 的 Organic 設計」兩列
-16. 手機版 Milestone 2（尚未規劃）：Google OAuth 登入（`expo-auth-session` 搭橋 next-auth
-    JWT session）、收藏、單人座位回報、個人頁面、地圖檢視——這些都刻意排除在 Milestone 1
-    之外，等使用者測過純瀏覽功能、決定要不要繼續再另外規劃
+16. ~~手機版 Milestone 2 第一步：Google 登入（原生 SDK）~~ 2026-08-21 程式碼完成，
+    **使用者已完成 Google Cloud Console 申請＋重新原生建置，並在 iOS／Android 模擬器實測
+    確認登入／登出／殺掉 App 重開後仍維持登入狀態皆正常**，見上方進度對照表同名列的完整說明
+17. 手機版 Milestone 2 剩餘項目（尚未規劃，等使用者測過登入功能再排）：收藏、單人座位回報、
+    個人頁面（含大頭貼/改名字）、地圖檢視——後端 procedure（`favorite.*`／`soloSeatReport.*`／
+    `user.updateName`／`user.updateAvatar`）都已存在（網頁版已在用），手機版接上不需要再動
+    後端，純粹是手機版畫面/互動的工作
 
 ## 給接手對話的 AI 模型的提醒
 

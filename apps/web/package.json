@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "dotenv -e ../../.env -- next dev",
+    "prebuild": "dotenv -e ../../.env -- yarn workspace @justsolo/shared db:generate",
     "build": "dotenv -e ../../.env -- next build",
     "start": "dotenv -e ../../.env -- next start",
     "lint": "eslint",
