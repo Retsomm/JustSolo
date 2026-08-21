@@ -1,4 +1,4 @@
-import { upsertUserByEmail } from "../clients/prismaClient";
+import { upsertUserByGoogleId } from "../clients/prismaClient";
 
 // 純粹轉呼叫 Client 層，沒有額外業務邏輯，故不另立單元測試。
-export const registerOrUpdateUser = upsertUserByEmail;
+export const registerOrUpdateUser = upsertUserByGoogleId;

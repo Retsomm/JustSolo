@@ -236,20 +236,63 @@ export const listFavoriteRestaurantsByUserId = async (
   };
 };
 
-// update 故意留空：name/image 只在「第一次註冊」時採用 Google 的值當預設，
-// 之後使用者在個人頁面自己改過的名稱/大頭貼，不該被下一次登入時 Google 回傳的
-// profile 資料蓋掉——這兩個欄位之後只由 updateUserProfile（個人頁面）異動。
-export const upsertUserByEmail = async (input: {
+// 以 Google sub（googleId）為身分鍵 upsert，不再用 email——email 使用者可能在
+// Google 端更改，不是穩定識別碼，用它連結帳號有被冒用未驗證信箱取得他人帳號的風險
+// （見 googleIdTokenPayload.ts 的說明）。email 每次登入仍會同步更新（純粹顯示用途，
+// 沒有唯一性/安全疑慮）；但 name/image 故意不在 update 覆寫：只在「第一次註冊」時
+// 採用 Google 的值當預設，之後使用者在個人頁面自己改過的名稱/大頭貼，不該被下一次
+// 登入時 Google 回傳的 profile 資料蓋掉——這兩個欄位之後只由 updateUserProfile
+// （個人頁面）異動。
+export const upsertUserByGoogleId = async (input: {
+  googleId: string;
   email: string;
   name: string | null;
   image: string | null;
 }): Promise<{ id: string }> =>
   getPrisma().user.upsert({
-    where: { email: input.email },
-    update: {},
-    create: { email: input.email, name: input.name, image: input.image },
+    where: { googleId: input.googleId },
+    update: { email: input.email },
+    create: {
+      googleId: input.googleId,
+      email: input.email,
+      name: input.name,
+      image: input.image,
+    },
     select: { id: true },
   });
+
+// 手機版長效 session token 對應的伺服器端紀錄，讓 verifyMobileSessionToken 能在
+// JWT 本身還沒過期時,也判斷這個 session 是否已被登出撤銷。
+export const createMobileSession = (
+  userId: string,
+  expiresAt: Date,
+): Promise<{ id: string }> =>
+  getPrisma().mobileSession.create({
+    data: { userId, expiresAt },
+    select: { id: true },
+  });
+
+export const findActiveMobileSessionById = async (
+  id: string,
+): Promise<{ userId: string } | null> => {
+  const session = await getPrisma().mobileSession.findUnique({
+    where: { id },
+    select: { userId: true, revokedAt: true, expiresAt: true },
+  });
+
+  if (!session || session.revokedAt !== null || session.expiresAt < new Date()) {
+    return null;
+  }
+
+  return { userId: session.userId };
+};
+
+export const revokeMobileSessionById = async (id: string): Promise<void> => {
+  await getPrisma().mobileSession.update({
+    where: { id },
+    data: { revokedAt: new Date() },
+  });
+};
 
 export const updateUserProfile = (
   userId: string,
