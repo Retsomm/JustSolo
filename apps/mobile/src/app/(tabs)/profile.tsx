@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -38,15 +37,9 @@ export default ProfileTabScreen;
 
 const SignedInProfile = ({ onSignOut }: { onSignOut: () => void }) => {
   const theme = useOrganicTheme();
-  const { handleUnauthorized } = useAuth();
-  const { data, isLoading, error } = trpc.user.getProfile.useQuery();
-
-  useEffect(() => {
-    if (error?.data?.code === "UNAUTHORIZED") {
-      handleUnauthorized();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [error]);
+  // 401 時的登出處理集中在 trpc.ts 的 fetch 攔截器＋useAuth 的 unauthorizedHandler
+  // 註冊機制，這裡不用再另外判斷 error.data.code，見已知的坑第 26 條。
+  const { data, isLoading } = trpc.user.getProfile.useQuery();
 
   return (
     <>
