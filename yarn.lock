@@ -2143,6 +2143,11 @@
   resolved "https://registry.npmmirror.com/@react-leaflet/core/-/core-3.0.0.tgz"
   integrity sha512-3EWmekh4Nz+pGcr+xjf0KNyYfC3U2JjnkWsh0zcqaexYqmmB5ZhH37kz41JXGmKzpaMZCnPofBBm64i+YrEvGQ==
 
+"@react-native-google-signin/google-signin@^16.1.4":
+  version "16.1.4"
+  resolved "https://registry.npmmirror.com/@react-native-google-signin/google-signin/-/google-signin-16.1.4.tgz#64838d2c39d0f001081a900a008817841f42eeea"
+  integrity sha512-Lt4vjihJ+Nk9I4HjScWHzch3ebtIlP3QIea0XEHVN0PJumwUwiK/J2tU8qs7H9DIqNblC0qlXkR0Ts4ELvq7yA==
+
 "@react-native-masked-view/masked-view@^0.3.2":
   version "0.3.2"
   resolved "https://registry.npmmirror.com/@react-native-masked-view/masked-view/-/masked-view-0.3.2.tgz"
@@ -4954,6 +4959,11 @@ expo-router@~57.0.15:
     shallowequal "^1.1.0"
     standard-navigation "^0.0.5"
     vaul "^1.1.2"
+
+expo-secure-store@~57.0.1:
+  version "57.0.1"
+  resolved "https://registry.npmmirror.com/expo-secure-store/-/expo-secure-store-57.0.1.tgz#746892729ca7a78513a1c220b48c1f3f803af413"
+  integrity sha512-tLa1VmSadOq19mA/dwkl99RbHyjLE0T1qqBYMY3/OsguZTI+rlrDy/DDJjupqlVtmr95hD7o1pYqx5aL+B4YMA==
 
 expo-server@^57.0.3:
   version "57.0.3"

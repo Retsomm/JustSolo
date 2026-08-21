@@ -6,6 +6,7 @@
     "@expo-google-fonts/caprasimo": "^0.4.0",
     "@expo-google-fonts/figtree": "^0.4.1",
     "@justsolo/shared": "*",
+    "@react-native-google-signin/google-signin": "^16.1.4",
     "@tanstack/react-query": "^5.101.4",
     "@trpc/client": "^11.18.0",
     "@trpc/react-query": "^11.18.0",
@@ -16,6 +17,7 @@
     "expo-image": "~57.0.3",
     "expo-linking": "~57.0.7",
     "expo-router": "~57.0.15",
+    "expo-secure-store": "~57.0.1",
     "expo-splash-screen": "~57.0.7",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.2",
@@ -33,14 +35,16 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "dotenv-cli": "^8.0.0",
+    "eslint-config-expo": "~57.0.1",
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
+    "start": "dotenv -e ../../.env -- expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
-    "web": "expo start --web",
+    "android": "dotenv -e ../../.env -- expo run:android",
+    "ios": "dotenv -e ../../.env -- expo run:ios",
+    "web": "dotenv -e ../../.env -- expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit"
   },

@@ -11,6 +11,7 @@ import {
 
 import { trpc, createTrpcClient } from "@/lib/trpc";
 import { OrganicThemeProvider, useOrganicTheme } from "@/hooks/useOrganicTheme";
+import { AuthProvider } from "@/hooks/useAuth";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -45,7 +46,9 @@ export default function RootLayout() {
     <OrganicThemeProvider>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
-          <RootLayoutNavigator />
+          <AuthProvider>
+            <RootLayoutNavigator />
+          </AuthProvider>
         </QueryClientProvider>
       </trpc.Provider>
     </OrganicThemeProvider>
