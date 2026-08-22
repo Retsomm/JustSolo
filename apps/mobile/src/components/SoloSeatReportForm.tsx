@@ -105,6 +105,7 @@ export const SoloSeatReportForm = ({ restaurantId }: SoloSeatReportFormProps) =>
           <Button
             label={myReport ? "編輯" : "新增回報"}
             onPress={startEditing}
+            disabled={deleteReport.isPending}
             style={styles.actionButton}
           />
           {myReport && (
