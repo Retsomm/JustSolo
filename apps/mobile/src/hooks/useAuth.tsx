@@ -21,6 +21,7 @@ type AuthContextValue = {
   status: AuthStatus;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -31,6 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const signInMutation = trpc.auth.signInWithGoogle.useMutation();
   const signOutMutation = trpc.auth.signOut.useMutation();
+  const deleteAccountMutation = trpc.user.deleteAccount.useMutation();
 
   const clearLocalSession = async () => {
     // 這個函式可能被好幾個同時掛載的 protectedProcedure 查詢各自獨立觸發
@@ -124,6 +126,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // 呼叫端（profile.tsx）負責先跳確認對話框再呼叫這個函式，這裡不重複做二次確認。
+  // deleteAccountMutation 失敗時直接把錯誤往上拋，不吞掉——本機 session 這時不能清，
+  // 否則會變成「伺服器其實還有這個帳號，但 App 已經誤判成登出」的不一致狀態，讓使用者
+  // 誤以為刪除成功。成功時，伺服器端的 deleteUserAccountTransaction 已經在同一個
+  // transaction 裡把這個帳號底下所有 MobileSession 一併刪掉了，不用像 signOut 那樣
+  // 再另外呼叫 signOutMutation 撤銷，直接走本機清理即可。
+  const deleteAccount = async () => {
+    await deleteAccountMutation.mutateAsync();
+    try {
+      await GoogleSignin.signOut();
+    } catch {
+      // provider 端登出失敗也要繼續清本機 session，不能因此卡在已登入狀態。
+    }
+    await clearLocalSession();
+  };
+
   // 給 protectedProcedure 回 401 時呼叫：伺服器已判定 token 失效，不用也不該
   // 再對 Google 發登出請求，只需清本機 session 讓畫面回到未登入狀態。
   const handleUnauthorized = async () => {
@@ -141,7 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, signInWithGoogle, signOut }),
+    () => ({ status, signInWithGoogle, signOut, deleteAccount }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [status],
   );

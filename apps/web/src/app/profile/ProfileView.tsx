@@ -61,6 +61,71 @@ const ThemeToggleButton = () => {
   );
 };
 
+const DeleteAccountButton = () => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [signOutFailed, setSignOutFailed] = useState(false);
+  const deleteAccount = trpc.user.deleteAccount.useMutation();
+
+  const handleDelete = async () => {
+    if (
+      !window.confirm(
+        "刪除後帳號、收藏與回報紀錄都會永久移除，無法復原。確定要刪除嗎？",
+      )
+    ) {
+      return;
+    }
+    setHasError(false);
+    setSignOutFailed(false);
+    setIsDeleting(true);
+    try {
+      await deleteAccount.mutateAsync();
+    } catch {
+      setIsDeleting(false);
+      setHasError(true);
+      return;
+    }
+    try {
+      await signOut();
+    } catch {
+      setIsDeleting(false);
+      setSignOutFailed(true);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <button
+        type="button"
+        disabled={isDeleting}
+        onClick={handleDelete}
+        className="cursor-pointer rounded-full border border-danger px-4 py-1.5 text-sm text-danger hover:bg-danger/10 disabled:opacity-50"
+      >
+        {isDeleting ? "刪除中…" : "刪除帳號"}
+      </button>
+      {hasError && (
+        <p role="alert" className="text-sm text-foreground/70">
+          刪除失敗，請稍後再試。
+        </p>
+      )}
+      {signOutFailed && (
+        <div className="flex flex-col items-center gap-1">
+          <p role="alert" className="text-sm text-foreground/70">
+            帳號已刪除，但登出時發生問題。
+          </p>
+          <button
+            type="button"
+            onClick={() => signOut()}
+            className="cursor-pointer text-sm text-foreground underline hover:no-underline"
+          >
+            再試一次登出
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const RemoveFavoriteButton = ({ restaurantId }: { restaurantId: string }) => {
   const utils = trpc.useUtils();
   const toggleFavorite = useToggleFavorite();
@@ -95,6 +160,9 @@ export const ProfileView = () => {
   // 自己對應的那份資料，切換靠導覽列本身，頁面裡不需要另外畫分頁按鈕。
   const activeTab = searchParams.get("tab") === "favorites" ? "favorites" : "profile";
   const [page, setPage] = useState(1);
+  // 大頭貼上傳／改名字的按鈕預設收起，點「編輯」才顯示，避免一進頁面就看到
+  // 一排編輯用按鈕——比照手機版 profile.tsx 的 isEditMode 集中管理寫法。
+  const [isEditMode, setIsEditMode] = useState(false);
   const { data: favorites, isLoading } = useFavorites(page, {
     enabled: activeTab === "favorites",
   });
@@ -122,13 +190,30 @@ export const ProfileView = () => {
     <main className="mx-auto flex w-full max-w-130 flex-col items-center gap-6 px-4 pb-8 pt-20 text-center">
       {activeTab === "profile" ? (
         <div className="flex flex-col items-center gap-8">
-          <div className="flex flex-col items-center gap-3">
-            <AvatarUploader />
-            <EditableName />
-            <p className="text-sm text-foreground/60">{session.user?.email}</p>
+          {/* 窄螢幕大頭貼/名稱/信箱直向置中；寬螢幕改成大頭貼跟名稱水平並排，
+              比照手機版個人頁面的資訊分組方式。 */}
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <AvatarUploader showUploadButton={isEditMode} />
+            <div className="flex flex-col items-center gap-1 sm:items-start">
+              {/* key 讓 isEditMode 從 true 變 false 時整個重新掛載，藉此重置
+                  內部 isEditing/value/error 狀態（見 EditableName.tsx 開頭
+                  註解）。 */}
+              <EditableName
+                showEditButton={isEditMode}
+                key={isEditMode ? "editing" : "view"}
+              />
+              <p className="text-sm text-foreground/60">{session.user?.email}</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsEditMode((prev) => !prev)}
+              className="cursor-pointer rounded-full border border-divider px-4 py-1.5 text-sm text-foreground hover:bg-foreground/5"
+            >
+              {isEditMode ? "完成" : "編輯"}
+            </button>
             <button
               type="button"
               onClick={() => signOut()}
@@ -138,6 +223,7 @@ export const ProfileView = () => {
             </button>
             <ThemeToggleButton />
           </div>
+          <DeleteAccountButton />
         </div>
       ) : (
         <section className="flex w-full flex-col gap-3 text-left">

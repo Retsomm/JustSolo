@@ -143,7 +143,14 @@ const CropDialog = ({
   );
 };
 
-export const AvatarUploader = () => {
+// 上傳按鈕只在 showUploadButton 為 true 時顯示（由 ProfileView 的編輯模式控制，
+// 比照手機版 AvatarUploader 同名 prop），頭貼本身（含 fallback 圖示）不受影響、
+// 隨時都顯示。
+export const AvatarUploader = ({
+  showUploadButton,
+}: {
+  showUploadButton: boolean;
+}) => {
   const { data: profile } = useUserProfile();
   const utils = trpc.useUtils();
   const updateAvatar = useUpdateUserAvatar();
@@ -224,14 +231,16 @@ export const AvatarUploader = () => {
         className="hidden"
         onChange={handleFileChange}
       />
-      <button
-        ref={uploadButtonRef}
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        className="cursor-pointer rounded-full border border-divider px-3 py-1.5 text-xs text-foreground hover:bg-foreground/5"
-      >
-        上傳大頭貼
-      </button>
+      {showUploadButton && (
+        <button
+          ref={uploadButtonRef}
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="cursor-pointer rounded-full border border-divider px-3 py-1.5 text-xs text-foreground hover:bg-foreground/5"
+        >
+          上傳大頭貼
+        </button>
+      )}
 
       {error && !imageSrc && <p className="text-xs text-danger">{error}</p>}
 

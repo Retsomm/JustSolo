@@ -22,11 +22,18 @@ vi.mock("@/hooks/useFavorites");
 vi.mock("@/hooks/useToggleFavorite");
 // AvatarUploader/EditableName 本身各自有自己的測試（AvatarUploader.test.tsx/
 // EditableName.test.tsx），這裡用 stub 避免要另外準備 react-easy-crop/tRPC mutation mock。
+// stub 把 showUploadButton/showEditButton 印成 data attribute，用來驗證
+// ProfileView 的編輯模式開關有沒有真的轉呼叫給這兩個子元件（比照已知的坑
+// 「組合層轉傳測試」）。
 vi.mock("@/components/AvatarUploader", () => ({
-  AvatarUploader: () => null,
+  AvatarUploader: ({ showUploadButton }: { showUploadButton: boolean }) => (
+    <div data-testid="avatar-uploader-stub" data-show-upload={showUploadButton} />
+  ),
 }));
 vi.mock("@/components/EditableName", () => ({
-  EditableName: () => null,
+  EditableName: ({ showEditButton }: { showEditButton: boolean }) => (
+    <div data-testid="editable-name-stub" data-show-edit={showEditButton} />
+  ),
 }));
 
 const listInvalidate = vi.fn();
@@ -151,6 +158,41 @@ describe("ProfileView", () => {
     expect(
       screen.queryByRole("button", { name: "登出" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("個人資料頁預設收起編輯用按鈕，點擊「編輯」會顯示、切換文字為「完成」，再點一次會收起", async () => {
+    mockedUseSession.mockReturnValue(signedInSession);
+
+    render(<ProfileView />);
+
+    expect(screen.getByTestId("avatar-uploader-stub")).toHaveAttribute(
+      "data-show-upload",
+      "false",
+    );
+    expect(screen.getByTestId("editable-name-stub")).toHaveAttribute(
+      "data-show-edit",
+      "false",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "編輯" }));
+
+    expect(screen.getByTestId("avatar-uploader-stub")).toHaveAttribute(
+      "data-show-upload",
+      "true",
+    );
+    expect(screen.getByTestId("editable-name-stub")).toHaveAttribute(
+      "data-show-edit",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "完成" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "完成" }));
+
+    expect(screen.getByTestId("avatar-uploader-stub")).toHaveAttribute(
+      "data-show-upload",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: "編輯" })).toBeInTheDocument();
   });
 
   it("個人資料頁點擊登出按鈕會呼叫 signOut", async () => {

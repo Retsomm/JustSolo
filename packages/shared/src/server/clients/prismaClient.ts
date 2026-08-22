@@ -405,3 +405,50 @@ export const findSoloSeatReportByUserAndRestaurant = (
     where: { restaurantId_userId: { restaurantId, userId } },
     select: { reportType: true, note: true },
   });
+
+// 帳號刪除是 App 上架的硬性條件（Apple/Google 都要求提供帳號內刪除路徑）。schema 裡
+// User 底下的 SoloSeatReport/Favorite/MobileSession 都是必要關聯（沒設 onDelete:
+// Cascade），直接刪 User row 會撞 FK constraint，所以在同一個 transaction 裡手動照順序
+// 清掉關聯資料再刪 User。刪除該使用者的回報後，比照 deleteSoloSeatReportTransaction 的
+// 鎖 row／重算邏輯，把每一間受影響餐廳的 soloSeatStatus/soloSeatConfidence 重算寫回——
+// 不能只是刪回報就結束，否則其他人看到的聚合分數會是「少了這筆回報卻沒重算」的髒資料。
+// 收藏（Favorite）沒有聚合欄位，直接刪即可；MobileSession 刪除後這個裝置上的 token
+// 也會在下一次請求時因為查無 session 紀錄而被視為未登入。
+export const deleteUserAccountTransaction = async (input: {
+  userId: string;
+  computeStatus: (
+    reportTypes: SoloSeatStatus[],
+  ) => { status: SoloSeatStatus; confidence: number };
+}): Promise<void> => {
+  await getPrisma().$transaction(async (tx) => {
+    const reports = await tx.soloSeatReport.findMany({
+      where: { userId: input.userId },
+      select: { restaurantId: true },
+    });
+    const affectedRestaurantIds = [...new Set(reports.map((r) => r.restaurantId))].sort();
+
+    for (const restaurantId of affectedRestaurantIds) {
+      await tx.$executeRaw`SELECT id FROM "Restaurant" WHERE id = ${restaurantId} FOR UPDATE`;
+    }
+
+    await tx.soloSeatReport.deleteMany({ where: { userId: input.userId } });
+
+    for (const restaurantId of affectedRestaurantIds) {
+      const remaining = await tx.soloSeatReport.findMany({
+        where: { restaurantId },
+        select: { reportType: true },
+      });
+      const { status, confidence } = input.computeStatus(
+        remaining.map((r) => r.reportType),
+      );
+      await tx.restaurant.update({
+        where: { id: restaurantId },
+        data: { soloSeatStatus: status, soloSeatConfidence: confidence },
+      });
+    }
+
+    await tx.favorite.deleteMany({ where: { userId: input.userId } });
+    await tx.mobileSession.deleteMany({ where: { userId: input.userId } });
+    await tx.user.deleteMany({ where: { id: input.userId } });
+  });
+};
