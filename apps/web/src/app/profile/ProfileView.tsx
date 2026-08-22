@@ -61,6 +61,47 @@ const ThemeToggleButton = () => {
   );
 };
 
+const DeleteAccountButton = () => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const deleteAccount = trpc.user.deleteAccount.useMutation();
+
+  const handleDelete = async () => {
+    if (
+      !window.confirm(
+        "刪除後帳號、收藏與回報紀錄都會永久移除，無法復原。確定要刪除嗎？",
+      )
+    ) {
+      return;
+    }
+    setHasError(false);
+    setIsDeleting(true);
+    try {
+      await deleteAccount.mutateAsync();
+      await signOut();
+    } catch {
+      setIsDeleting(false);
+      setHasError(true);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <button
+        type="button"
+        disabled={isDeleting}
+        onClick={handleDelete}
+        className="cursor-pointer rounded-full border border-danger px-4 py-1.5 text-sm text-danger hover:bg-danger/10 disabled:opacity-50"
+      >
+        {isDeleting ? "刪除中…" : "刪除帳號"}
+      </button>
+      {hasError && (
+        <p className="text-sm text-foreground/70">刪除失敗，請稍後再試。</p>
+      )}
+    </div>
+  );
+};
+
 const RemoveFavoriteButton = ({ restaurantId }: { restaurantId: string }) => {
   const utils = trpc.useUtils();
   const toggleFavorite = useToggleFavorite();
@@ -158,6 +199,7 @@ export const ProfileView = () => {
             </button>
             <ThemeToggleButton />
           </div>
+          <DeleteAccountButton />
         </div>
       ) : (
         <section className="flex w-full flex-col gap-3 text-left">
