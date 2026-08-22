@@ -64,6 +64,7 @@ const ThemeToggleButton = () => {
 const DeleteAccountButton = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [signOutFailed, setSignOutFailed] = useState(false);
   const deleteAccount = trpc.user.deleteAccount.useMutation();
 
   const handleDelete = async () => {
@@ -75,13 +76,20 @@ const DeleteAccountButton = () => {
       return;
     }
     setHasError(false);
+    setSignOutFailed(false);
     setIsDeleting(true);
     try {
       await deleteAccount.mutateAsync();
-      await signOut();
     } catch {
       setIsDeleting(false);
       setHasError(true);
+      return;
+    }
+    try {
+      await signOut();
+    } catch {
+      setIsDeleting(false);
+      setSignOutFailed(true);
     }
   };
 
@@ -96,7 +104,23 @@ const DeleteAccountButton = () => {
         {isDeleting ? "刪除中…" : "刪除帳號"}
       </button>
       {hasError && (
-        <p className="text-sm text-foreground/70">刪除失敗，請稍後再試。</p>
+        <p role="alert" className="text-sm text-foreground/70">
+          刪除失敗，請稍後再試。
+        </p>
+      )}
+      {signOutFailed && (
+        <div className="flex flex-col items-center gap-1">
+          <p role="alert" className="text-sm text-foreground/70">
+            帳號已刪除，但登出時發生問題。
+          </p>
+          <button
+            type="button"
+            onClick={() => signOut()}
+            className="cursor-pointer text-sm text-foreground underline hover:no-underline"
+          >
+            再試一次登出
+          </button>
+        </div>
       )}
     </div>
   );

@@ -425,7 +425,7 @@ export const deleteUserAccountTransaction = async (input: {
       where: { userId: input.userId },
       select: { restaurantId: true },
     });
-    const affectedRestaurantIds = [...new Set(reports.map((r) => r.restaurantId))];
+    const affectedRestaurantIds = [...new Set(reports.map((r) => r.restaurantId))].sort();
 
     for (const restaurantId of affectedRestaurantIds) {
       await tx.$executeRaw`SELECT id FROM "Restaurant" WHERE id = ${restaurantId} FOR UPDATE`;
@@ -449,6 +449,6 @@ export const deleteUserAccountTransaction = async (input: {
 
     await tx.favorite.deleteMany({ where: { userId: input.userId } });
     await tx.mobileSession.deleteMany({ where: { userId: input.userId } });
-    await tx.user.delete({ where: { id: input.userId } });
+    await tx.user.deleteMany({ where: { id: input.userId } });
   });
 };
