@@ -5,7 +5,11 @@ import { useUpdateUserName } from "@/hooks/useUpdateUserName";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { trpc } from "@/lib/trpc";
 
-export const EditableName = () => {
+// 「編輯」按鈕只在 showEditButton 為 true 時顯示（由 ProfileView 的編輯模式
+// 控制，比照手機版 EditableName 同名 prop），名稱文字不受影響、隨時都顯示。
+// 編輯模式被外層關閉時要連帶收起正在進行中的輸入框——ProfileView 用 `key`
+// 在 showEditButton 翻轉時整個重新掛載這個元件，state 自然回到初始值。
+export const EditableName = ({ showEditButton }: { showEditButton: boolean }) => {
   const { data: profile } = useUserProfile();
   const utils = trpc.useUtils();
   const updateName = useUpdateUserName();
@@ -19,17 +23,19 @@ export const EditableName = () => {
         <p className="font-semibold text-foreground">
           {profile?.name ?? "使用者"}
         </p>
-        <button
-          type="button"
-          onClick={() => {
-            setValue(profile?.name ?? "");
-            setError(null);
-            setIsEditing(true);
-          }}
-          className="cursor-pointer rounded-full border border-divider px-2 py-0.5 text-xs text-foreground hover:bg-foreground/5"
-        >
-          編輯
-        </button>
+        {showEditButton && (
+          <button
+            type="button"
+            onClick={() => {
+              setValue(profile?.name ?? "");
+              setError(null);
+              setIsEditing(true);
+            }}
+            className="cursor-pointer rounded-full border border-divider px-2 py-0.5 text-xs text-foreground hover:bg-foreground/5"
+          >
+            編輯
+          </button>
+        )}
       </div>
     );
   }

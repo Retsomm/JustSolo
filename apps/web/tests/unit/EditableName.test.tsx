@@ -33,14 +33,22 @@ describe("EditableName", () => {
   });
 
   it("預設顯示目前名稱與「編輯」按鈕，沒有輸入框", () => {
-    render(<EditableName />);
+    render(<EditableName showEditButton />);
 
     expect(screen.getByText("小明")).toBeInTheDocument();
     expect(screen.queryByLabelText("名稱")).not.toBeInTheDocument();
   });
 
+  it("showEditButton 為 false 時不顯示「編輯」按鈕", () => {
+    render(<EditableName showEditButton={false} />);
+
+    expect(
+      screen.queryByRole("button", { name: "編輯" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("點擊「編輯」後顯示輸入框，帶入目前名稱", async () => {
-    render(<EditableName />);
+    render(<EditableName showEditButton />);
     await userEvent.click(screen.getByRole("button", { name: "編輯" }));
 
     expect(screen.getByLabelText("名稱")).toHaveValue("小明");
@@ -53,7 +61,7 @@ describe("EditableName", () => {
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateUserName>);
 
-    render(<EditableName />);
+    render(<EditableName showEditButton />);
     await userEvent.click(screen.getByRole("button", { name: "編輯" }));
     await userEvent.clear(screen.getByLabelText("名稱"));
     await userEvent.click(screen.getByRole("button", { name: "儲存" }));
@@ -71,7 +79,7 @@ describe("EditableName", () => {
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateUserName>);
 
-    render(<EditableName />);
+    render(<EditableName showEditButton />);
     await userEvent.click(screen.getByRole("button", { name: "編輯" }));
     await userEvent.clear(screen.getByLabelText("名稱"));
     await userEvent.type(screen.getByLabelText("名稱"), "小華");
@@ -92,7 +100,7 @@ describe("EditableName", () => {
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateUserName>);
 
-    render(<EditableName />);
+    render(<EditableName showEditButton />);
     await userEvent.click(screen.getByRole("button", { name: "編輯" }));
     await userEvent.click(screen.getByRole("button", { name: "取消" }));
 

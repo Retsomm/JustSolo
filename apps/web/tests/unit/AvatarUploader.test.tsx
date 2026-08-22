@@ -76,7 +76,7 @@ describe("AvatarUploader", () => {
   });
 
   it("沒有大頭貼時顯示預設圖示，不顯示裁切彈窗", () => {
-    render(<AvatarUploader />);
+    render(<AvatarUploader showUploadButton />);
 
     expect(screen.queryByTestId("cropper-stub")).not.toBeInTheDocument();
   });
@@ -84,7 +84,7 @@ describe("AvatarUploader", () => {
   it("選擇檔案後開啟裁切彈窗（顯示 Cropper、縮放滑桿、確認/取消按鈕）", async () => {
     mockedReadFileAsDataUrl.mockResolvedValue("data:image/png;base64,orig");
 
-    render(<AvatarUploader />);
+    render(<AvatarUploader showUploadButton />);
     await selectAvatarFile();
 
     expect(screen.getByTestId("cropper-stub")).toBeInTheDocument();
@@ -101,7 +101,7 @@ describe("AvatarUploader", () => {
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateUserAvatar>);
 
-    render(<AvatarUploader />);
+    render(<AvatarUploader showUploadButton />);
     await selectAvatarFile();
     await userEvent.click(screen.getByRole("button", { name: "取消" }));
 
@@ -121,7 +121,7 @@ describe("AvatarUploader", () => {
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateUserAvatar>);
 
-    render(<AvatarUploader />);
+    render(<AvatarUploader showUploadButton />);
     await selectAvatarFile();
     await userEvent.click(screen.getByRole("button", { name: "確認" }));
 
@@ -137,12 +137,20 @@ describe("AvatarUploader", () => {
     expect(screen.queryByTestId("cropper-stub")).not.toBeInTheDocument();
   });
 
+  it("showUploadButton 為 false 時不顯示上傳按鈕", () => {
+    render(<AvatarUploader showUploadButton={false} />);
+
+    expect(
+      screen.queryByRole("button", { name: "上傳大頭貼" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("已有大頭貼時顯示現有的圖片", () => {
     mockedUseUserProfile.mockReturnValue({
       data: { name: "小明", image: "https://example.com/avatar.jpg" },
     } as unknown as ReturnType<typeof useUserProfile>);
 
-    render(<AvatarUploader />);
+    render(<AvatarUploader showUploadButton />);
 
     // alt="" 是刻意的（大頭貼是裝飾性圖片，旁邊沒有文字說明它是誰），accessibility
     // role 因此是 "presentation" 不是 "img"。
