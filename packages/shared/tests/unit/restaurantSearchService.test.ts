@@ -115,7 +115,7 @@ describe("computeSoloFriendlinessScore", () => {
       }),
     ).toEqual({
       soloFriendlinessScore: 40,
-      soloFriendlinessLabel: "未知，建議致電確認",
+      soloFriendlinessLabel: "單人座位未知，建議致電確認",
     });
 
     expect(
@@ -126,7 +126,7 @@ describe("computeSoloFriendlinessScore", () => {
       }),
     ).toEqual({
       soloFriendlinessScore: 45,
-      soloFriendlinessLabel: "未知，建議致電確認",
+      soloFriendlinessLabel: "單人座位未知，建議致電確認",
     });
   });
 });
@@ -136,8 +136,8 @@ describe("resolveSoloFriendlinessLabel", () => {
     expect(resolveSoloFriendlinessLabel(85)).toBe("非常適合單人");
     expect(resolveSoloFriendlinessLabel(84)).toBe("適合單人");
     expect(resolveSoloFriendlinessLabel(65)).toBe("適合單人");
-    expect(resolveSoloFriendlinessLabel(64)).toBe("未知，建議致電確認");
-    expect(resolveSoloFriendlinessLabel(35)).toBe("未知，建議致電確認");
+    expect(resolveSoloFriendlinessLabel(64)).toBe("單人座位未知，建議致電確認");
+    expect(resolveSoloFriendlinessLabel(35)).toBe("單人座位未知，建議致電確認");
     expect(resolveSoloFriendlinessLabel(34)).toBe("不建議單人前往");
   });
 });

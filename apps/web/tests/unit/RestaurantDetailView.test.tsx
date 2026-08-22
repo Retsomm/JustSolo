@@ -131,7 +131,7 @@ describe("RestaurantDetailView", () => {
       );
     });
 
-    it("點擊「單人友善」會顯示單人座位狀態/友善度徽章/回報表單，並隱藏 PlaceDetailsSection", async () => {
+    it("點擊「單人友善」會顯示單人座位狀態/回報表單，並隱藏 PlaceDetailsSection", async () => {
       mockedUseRestaurantDetail.mockReturnValue({
         data: { ...restaurant, soloSeatConfidence: 0.75, reportCount: 4 },
         isLoading: false,
@@ -144,11 +144,26 @@ describe("RestaurantDetailView", () => {
       await userEvent.click(screen.getByRole("tab", { name: "單人友善" }));
 
       expect(screen.getByText(/已確認有單人座位/)).toBeInTheDocument();
-      expect(screen.getByText("適合單人")).toBeInTheDocument();
       expect(screen.getByText("單人座位信心：75%（4 則回報）")).toBeInTheDocument();
       expect(
         screen.queryByTestId("place-details-section-stub"),
       ).not.toBeInTheDocument();
+    });
+
+    // 友善度徽章（分數+標籤）跟這個文字狀態意思重疊，2026-08-22 使用者回報
+    // 兩者同時出現在同一張卡片是「重複顯示」，已決定：詳情頁只留文字狀態＋
+    // 信心百分比/回報則數（更精確完整），友善度徽章只保留在清單/卡片類畫面
+    // （首頁推薦卡/完整列表/收藏清單，方便快速比較），這裡改成斷言徽章不顯示。
+    it("單人友善 tab 不顯示友善度徽章（避免跟文字狀態重複顯示同一件事）", async () => {
+      mockedUseRestaurantDetail.mockReturnValue({
+        data: { ...restaurant, soloSeatConfidence: 0.75, reportCount: 4 },
+        isLoading: false,
+      } as unknown as ReturnType<typeof useRestaurantDetail>);
+
+      render(<RestaurantDetailView id="r1" />);
+      await userEvent.click(screen.getByRole("tab", { name: "單人友善" }));
+
+      expect(screen.queryByText("適合單人")).not.toBeInTheDocument();
     });
 
     it("單人友善 tab 沒有回報時不顯示信心分數", async () => {

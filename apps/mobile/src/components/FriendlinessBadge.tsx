@@ -8,6 +8,9 @@ type FriendlinessBadgeProps = {
   label: string;
 };
 
+// score 只用來決定顏色深淺，不直接顯示數字——App 裡沒有任何地方說明這個
+// 0-100 分是怎麼算出來的，2026-08-22 使用者反應看到裸數字（例如「未知，
+// 建議致電確認 40」）會誤以為是別的意思（信心百分比／評分），決定只留文字標籤。
 export const FriendlinessBadge = ({ score, label }: FriendlinessBadgeProps) => {
   const theme = useOrganicTheme();
 
@@ -21,7 +24,6 @@ export const FriendlinessBadge = ({ score, label }: FriendlinessBadgeProps) => {
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
       <Text style={[styles.label, { color: fg }]}>{label}</Text>
-      <Text style={[styles.score, { color: fg }]}>{score}</Text>
     </View>
   );
 };
@@ -39,10 +41,5 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: FontFamily.bodyMedium,
     fontSize: 12,
-  },
-  score: {
-    fontFamily: FontFamily.body,
-    fontSize: 10,
-    opacity: 0.7,
   },
 });

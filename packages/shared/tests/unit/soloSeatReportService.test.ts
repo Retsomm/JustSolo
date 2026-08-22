@@ -1,14 +1,30 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { submitSoloSeatReportTransaction } from "@/server/clients/prismaClient";
+import {
+  deleteSoloSeatReportTransaction,
+  findSoloSeatReportByUserAndRestaurant,
+  submitSoloSeatReportTransaction,
+} from "@/server/clients/prismaClient";
 import { computeSoloSeatStatus } from "@/pure/soloSeatStatus";
-import { submitSoloSeatReport } from "@/server/services/soloSeatReportService";
+import {
+  deleteSoloSeatReport,
+  getMySoloSeatReport,
+  submitSoloSeatReport,
+} from "@/server/services/soloSeatReportService";
 
 vi.mock("@/server/clients/prismaClient", () => ({
   submitSoloSeatReportTransaction: vi.fn(),
+  findSoloSeatReportByUserAndRestaurant: vi.fn(),
+  deleteSoloSeatReportTransaction: vi.fn(),
 }));
 
 const mockedSubmitSoloSeatReportTransaction = vi.mocked(
   submitSoloSeatReportTransaction,
+);
+const mockedFindSoloSeatReportByUserAndRestaurant = vi.mocked(
+  findSoloSeatReportByUserAndRestaurant,
+);
+const mockedDeleteSoloSeatReportTransaction = vi.mocked(
+  deleteSoloSeatReportTransaction,
 );
 
 describe("computeSoloSeatStatus", () => {
@@ -107,5 +123,67 @@ describe("submitSoloSeatReport", () => {
     expect(mockedSubmitSoloSeatReportTransaction).toHaveBeenCalledWith(
       expect.objectContaining({ note: null }),
     );
+  });
+});
+
+describe("getMySoloSeatReport", () => {
+  beforeEach(() => {
+    mockedFindSoloSeatReportByUserAndRestaurant.mockReset();
+  });
+
+  it("把 userId/restaurantId 轉呼叫 Client 層查詢函式", async () => {
+    mockedFindSoloSeatReportByUserAndRestaurant.mockResolvedValue(null);
+
+    await getMySoloSeatReport("u1", "r1");
+
+    expect(mockedFindSoloSeatReportByUserAndRestaurant).toHaveBeenCalledWith(
+      "u1",
+      "r1",
+    );
+  });
+
+  it("查無回報時回傳 null", async () => {
+    mockedFindSoloSeatReportByUserAndRestaurant.mockResolvedValue(null);
+
+    expect(await getMySoloSeatReport("u1", "r1")).toBeNull();
+  });
+
+  it("有回報時回傳 reportType/note", async () => {
+    mockedFindSoloSeatReportByUserAndRestaurant.mockResolvedValue({
+      reportType: "CONFIRMED_YES",
+      note: "吧台有單人座",
+    });
+
+    expect(await getMySoloSeatReport("u1", "r1")).toEqual({
+      reportType: "CONFIRMED_YES",
+      note: "吧台有單人座",
+    });
+  });
+
+  it("reportType 是 UNKNOWN（理論上不會發生的資料）時仍回傳 null，不當成有效回報", async () => {
+    mockedFindSoloSeatReportByUserAndRestaurant.mockResolvedValue({
+      reportType: "UNKNOWN",
+      note: null,
+    });
+
+    expect(await getMySoloSeatReport("u1", "r1")).toBeNull();
+  });
+});
+
+describe("deleteSoloSeatReport", () => {
+  beforeEach(() => {
+    mockedDeleteSoloSeatReportTransaction.mockReset().mockResolvedValue(
+      undefined,
+    );
+  });
+
+  it("把 userId/restaurantId 轉呼叫 Client 層的 transaction 函式，且帶上真正的 computeStatus 純函式", async () => {
+    await deleteSoloSeatReport("u1", "r1");
+
+    expect(mockedDeleteSoloSeatReportTransaction).toHaveBeenCalledWith({
+      restaurantId: "r1",
+      userId: "u1",
+      computeStatus: computeSoloSeatStatus,
+    });
   });
 });
