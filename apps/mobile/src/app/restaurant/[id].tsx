@@ -6,9 +6,9 @@ import { soloSeatStatusLabel } from "@justsolo/shared";
 
 import { AppHeader } from "@/components/AppHeader";
 import { FavoriteButton } from "@/components/FavoriteButton";
-import { FriendlinessBadge } from "@/components/FriendlinessBadge";
 import { PlaceDetailsSection } from "@/components/PlaceDetailsSection";
 import type { PlaceDetailsTab } from "@/components/PlaceDetailsSection";
+import { SoloSeatReportForm } from "@/components/SoloSeatReportForm";
 import { useRestaurantDetail } from "@/hooks/useRestaurantDetail";
 import { useOrganicTheme } from "@/hooks/useOrganicTheme";
 import { FontFamily, OrganicRadius, OrganicSpacing } from "@/constants/organicTheme";
@@ -80,21 +80,20 @@ export default function RestaurantDetailScreen() {
             </View>
 
             {activeTab === "soloFriendly" ? (
-              <View style={[styles.card, { backgroundColor: theme.surface }]}>
-                <Text style={[styles.bodyText, { color: theme.text }]}>
-                  {soloSeatStatusLabel(data.soloSeatStatus)}
-                  {data.soloSeatType ? `・${data.soloSeatType}` : ""}
-                </Text>
-                <FriendlinessBadge score={data.soloFriendlinessScore} label={data.soloFriendlinessLabel} />
-                {data.reportCount > 0 && (
-                  <Text style={[styles.bodyTextSecondary, { color: theme.textSecondary }]}>
-                    單人座位信心：{Math.round(data.soloSeatConfidence * 100)}%（{data.reportCount} 則回報）
+              <>
+                <View style={[styles.card, { backgroundColor: theme.surface }]}>
+                  <Text style={[styles.bodyText, { color: theme.text }]}>
+                    {soloSeatStatusLabel(data.soloSeatStatus)}
+                    {data.soloSeatType ? `・${data.soloSeatType}` : ""}
                   </Text>
-                )}
-                <Text style={[styles.bodyTextSecondary, { color: theme.textSecondary }]}>
-                  登入後可以回報這裡是否有單人座位，這一輪還沒開放。
-                </Text>
-              </View>
+                  {data.reportCount > 0 && (
+                    <Text style={[styles.bodyTextSecondary, { color: theme.textSecondary }]}>
+                      單人座位信心：{Math.round(data.soloSeatConfidence * 100)}%（{data.reportCount} 則回報）
+                    </Text>
+                  )}
+                </View>
+                <SoloSeatReportForm restaurantId={data.id} />
+              </>
             ) : (
               <PlaceDetailsSection restaurantId={data.id} activeTab={activeTab} />
             )}

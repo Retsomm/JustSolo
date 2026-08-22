@@ -8,7 +8,7 @@ import { useRestaurantPick } from "@/hooks/useRestaurantPick";
 import { useRestaurantSearch } from "@/hooks/useRestaurantSearch";
 import { useRestaurantPlaceDetails } from "@/hooks/useRestaurantPlaceDetails";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { soloSeatStatusLabel, buildPlacePhotoProxyUrl } from "@justsolo/shared";
+import { buildPlacePhotoProxyUrl } from "@justsolo/shared";
 import { Pagination } from "@/components/Pagination";
 import { FriendlinessBadge } from "@/components/FriendlinessBadge";
 import { FavoriteButton } from "@/components/FavoriteButton";
@@ -225,9 +225,6 @@ export default function Home() {
               <p className="mt-1 text-sm text-foreground/70">
                 {current.categoryName} · {current.address}
               </p>
-              <p className="mt-1 text-sm text-foreground">
-                {soloSeatStatusLabel(current.soloSeatStatus)}
-              </p>
               <div className="mt-2 flex justify-end">
                 <FavoriteButton restaurantId={current.id} />
               </div>
@@ -288,10 +285,9 @@ export default function Home() {
                       </span>
                     </div>
                     <p className="text-sm text-foreground/60">{r.address}</p>
-                    <p className="mt-1 text-sm text-foreground/70">
-                      {soloSeatStatusLabel(r.soloSeatStatus)}
-                      {r.soloSeatType ? `・${r.soloSeatType}` : ""}
-                    </p>
+                    {r.soloSeatType && (
+                      <p className="mt-1 text-sm text-foreground/70">{r.soloSeatType}</p>
+                    )}
                   </Link>
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <FriendlinessBadge

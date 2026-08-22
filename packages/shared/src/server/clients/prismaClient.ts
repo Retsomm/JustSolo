@@ -362,3 +362,46 @@ export const submitSoloSeatReportTransaction = async (input: {
     });
   });
 };
+
+// 刪除回報、重算信心分數、寫回 Restaurant 三個步驟包在同一個 transaction 裡，
+// 鎖 row 的理由跟 submitSoloSeatReportTransaction 一樣：避免跟其他使用者同時
+// 回報/刪除時 aggregate 算錯。deleteMany（不是 delete）讓這個操作天生 idempotent
+// ——使用者本來就沒有回報過時重複呼叫也不會噴錯，語意比照 removeFavorite。
+export const deleteSoloSeatReportTransaction = async (input: {
+  restaurantId: string;
+  userId: string;
+  computeStatus: (
+    reportTypes: SoloSeatStatus[],
+  ) => { status: SoloSeatStatus; confidence: number };
+}): Promise<void> => {
+  await getPrisma().$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM "Restaurant" WHERE id = ${input.restaurantId} FOR UPDATE`;
+
+    await tx.soloSeatReport.deleteMany({
+      where: { restaurantId: input.restaurantId, userId: input.userId },
+    });
+
+    const reports = await tx.soloSeatReport.findMany({
+      where: { restaurantId: input.restaurantId },
+      select: { reportType: true },
+    });
+
+    const { status, confidence } = input.computeStatus(
+      reports.map((r) => r.reportType),
+    );
+
+    await tx.restaurant.update({
+      where: { id: input.restaurantId },
+      data: { soloSeatStatus: status, soloSeatConfidence: confidence },
+    });
+  });
+};
+
+export const findSoloSeatReportByUserAndRestaurant = (
+  userId: string,
+  restaurantId: string,
+): Promise<{ reportType: SoloSeatStatus; note: string | null } | null> =>
+  getPrisma().soloSeatReport.findUnique({
+    where: { restaurantId_userId: { restaurantId, userId } },
+    select: { reportType: true, note: true },
+  });

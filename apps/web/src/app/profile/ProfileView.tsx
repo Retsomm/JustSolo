@@ -7,7 +7,6 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import { trpc } from "@/lib/trpc";
-import { soloSeatStatusLabel } from "@justsolo/shared";
 import { resolveTheme, toggleTheme, THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
 import { FriendlinessBadge } from "@/components/FriendlinessBadge";
 import { AvatarUploader } from "@/components/AvatarUploader";
@@ -173,10 +172,9 @@ export const ProfileView = () => {
                       </span>
                     </div>
                     <p className="text-sm text-foreground/60">{r.address}</p>
-                    <p className="mt-1 text-sm text-foreground/70">
-                      {soloSeatStatusLabel(r.soloSeatStatus)}
-                      {r.soloSeatType ? `・${r.soloSeatType}` : ""}
-                    </p>
+                    {r.soloSeatType && (
+                      <p className="mt-1 text-sm text-foreground/70">{r.soloSeatType}</p>
+                    )}
                   </Link>
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <FriendlinessBadge

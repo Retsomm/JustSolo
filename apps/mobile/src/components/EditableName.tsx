@@ -10,7 +10,13 @@ import { FontFamily, OrganicRadius, OrganicSpacing } from "@/constants/organicTh
 // 比照網頁版 EditableName：預設唯讀名稱＋編輯按鈕，點擊後變成輸入框＋
 // 儲存/取消，空白名稱擋在前端不送出，儲存成功 invalidate user.getProfile
 // （不經 session，見已知的坑：JWT session 不能塞大型/易變資料）。
-export const EditableName = () => {
+// 「編輯」按鈕本身只在 showEditButton 為 true 時顯示（由 profile.tsx 的編輯
+// 模式控制），名稱文字不受影響、隨時都顯示。編輯模式被外層關閉時要連帶收起
+// 正在進行中的輸入框——不用 useEffect 監看 showEditButton 反過來 setState
+// （React 官方建議避免、eslint react-hooks/set-state-in-effect 也會擋下這種
+// 「用 effect 把 props 變化同步回 state」的寫法），改成讓 profile.tsx 用
+// `key` 在 showEditButton 翻轉時整個重新掛載這個元件，state 自然回到初始值。
+export const EditableName = ({ showEditButton }: { showEditButton: boolean }) => {
   const { data: profile } = useUserProfile();
   const theme = useOrganicTheme();
   const utils = trpc.useUtils();
@@ -23,18 +29,20 @@ export const EditableName = () => {
     return (
       <View style={styles.row}>
         <Text style={[styles.name, { color: theme.text }]}>{profile?.name ?? "使用者"}</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="編輯名稱"
-          onPress={() => {
-            setValue(profile?.name ?? "");
-            setError(null);
-            setIsEditing(true);
-          }}
-          style={[styles.editButton, { borderColor: theme.border }]}
-        >
-          <Text style={[styles.editButtonLabel, { color: theme.text }]}>編輯</Text>
-        </Pressable>
+        {showEditButton && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="編輯名稱"
+            onPress={() => {
+              setValue(profile?.name ?? "");
+              setError(null);
+              setIsEditing(true);
+            }}
+            style={[styles.editButton, { borderColor: theme.border }]}
+          >
+            <Text style={[styles.editButtonLabel, { color: theme.text }]}>編輯</Text>
+          </Pressable>
+        )}
       </View>
     );
   }

@@ -6,7 +6,6 @@ import { useRestaurantDetail } from "@/hooks/useRestaurantDetail";
 import { soloSeatStatusLabel } from "@justsolo/shared";
 import { SoloSeatReportForm } from "@/components/SoloSeatReportForm";
 import { FavoriteButton } from "@/components/FavoriteButton";
-import { FriendlinessBadge } from "@/components/FriendlinessBadge";
 import { PlaceDetailsSection } from "@/components/PlaceDetailsSection";
 import type { PlaceDetailsTab } from "@/components/PlaceDetailsSection";
 
@@ -90,12 +89,6 @@ export const RestaurantDetailView = ({ id }: RestaurantDetailViewProps) => {
                   {soloSeatStatusLabel(data.soloSeatStatus)}
                   {data.soloSeatType ? `・${data.soloSeatType}` : ""}
                 </p>
-                <div>
-                  <FriendlinessBadge
-                    score={data.soloFriendlinessScore}
-                    label={data.soloFriendlinessLabel}
-                  />
-                </div>
                 {data.reportCount > 0 && (
                   <p className="text-sm text-foreground/70">{`單人座位信心：${Math.round(data.soloSeatConfidence * 100)}%（${data.reportCount} 則回報）`}</p>
                 )}

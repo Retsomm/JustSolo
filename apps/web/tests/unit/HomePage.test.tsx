@@ -91,13 +91,16 @@ beforeEach(() => {
 });
 
 describe("首頁", () => {
-  it("顯示目前推薦的餐廳卡片（含單人座位狀態文字與友善度徽章）", () => {
+  it("顯示目前推薦的餐廳卡片（含友善度徽章；不重複顯示文字狀態）", () => {
     render(<Home />);
 
     expect(screen.getByText("測試燒肉店")).toBeInTheDocument();
     expect(screen.getByText(/台中市西區某路 1 號/)).toBeInTheDocument();
-    expect(screen.getByText(/已確認有單人座位/)).toBeInTheDocument();
     expect(screen.getByText("非常適合單人")).toBeInTheDocument();
+    // 2026-08-22 使用者回報卡片同時顯示文字狀態（已確認有單人座位）跟友善度
+    // 徽章意思重疊，決定清單/卡片類畫面只留友善度徽章，這裡改成斷言文字狀態
+    // 不顯示。
+    expect(screen.queryByText(/已確認有單人座位/)).not.toBeInTheDocument();
   });
 
   it("篩選條件面板預設收合，點擊「篩選條件」才會展開", async () => {

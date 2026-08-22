@@ -14,7 +14,7 @@ export const RESTAURANT_PAGE_SIZE = 10;
 export const resolveSoloFriendlinessLabel = (score: number): string => {
   if (score >= 85) return "非常適合單人";
   if (score >= 65) return "適合單人";
-  if (score >= 35) return "未知，建議致電確認";
+  if (score >= 35) return "單人座位未知，建議致電確認";
   return "不建議單人前往";
 };
 

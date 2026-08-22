@@ -15,7 +15,9 @@ const AVATAR_SIZE = 72;
 // 比照網頁版 AvatarUploader：顯示目前大頭貼（沒有就顯示預設圖示）＋上傳按鈕。
 // 裁切互動改用系統原生相簿選取器的 allowsEditing（見 src/lib/imageCrop.ts
 // 開頭的說明），選完直接處理＋送出，不需要另外刻一個裁切彈窗。
-export const AvatarUploader = () => {
+// 上傳按鈕只在 showUploadButton 為 true 時顯示（由 profile.tsx 的編輯模式控制），
+// 頭貼本身（含 fallback 圖示）不受影響、隨時都顯示。
+export const AvatarUploader = ({ showUploadButton }: { showUploadButton: boolean }) => {
   const { data: profile } = useUserProfile();
   const theme = useOrganicTheme();
   const utils = trpc.useUtils();
@@ -91,19 +93,21 @@ export const AvatarUploader = () => {
         </View>
       )}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="上傳大頭貼"
-        disabled={isPending}
-        onPress={handlePress}
-        style={[styles.uploadButton, { borderColor: theme.border }, isPending && styles.disabled]}
-      >
-        {isPending ? (
-          <ActivityIndicator color={theme.text} size="small" />
-        ) : (
-          <Text style={[styles.uploadButtonLabel, { color: theme.text }]}>上傳大頭貼</Text>
-        )}
-      </Pressable>
+      {showUploadButton && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="上傳大頭貼"
+          disabled={isPending}
+          onPress={handlePress}
+          style={[styles.uploadButton, { borderColor: theme.border }, isPending && styles.disabled]}
+        >
+          {isPending ? (
+            <ActivityIndicator color={theme.text} size="small" />
+          ) : (
+            <Text style={[styles.uploadButtonLabel, { color: theme.text }]}>上傳大頭貼</Text>
+          )}
+        </Pressable>
+      )}
 
       {error && <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>}
     </View>

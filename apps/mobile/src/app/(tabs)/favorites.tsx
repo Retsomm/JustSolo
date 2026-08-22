@@ -8,7 +8,6 @@ import { Button } from "@/components/Button";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FriendlinessBadge } from "@/components/FriendlinessBadge";
 import { Pagination } from "@/components/Pagination";
-import { StatusTag } from "@/components/StatusTag";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useOrganicTheme } from "@/hooks/useOrganicTheme";
@@ -68,11 +67,8 @@ const FavoritesTabScreen = () => {
                 {r.address}
               </Text>
               <View style={styles.cardFooterRow}>
-                <StatusTag status={r.soloSeatStatus} />
-                <View style={styles.cardFooterRight}>
-                  <FriendlinessBadge score={r.soloFriendlinessScore} label={r.soloFriendlinessLabel} />
-                  <FavoriteButton restaurantId={r.id} size={16} />
-                </View>
+                <FriendlinessBadge score={r.soloFriendlinessScore} label={r.soloFriendlinessLabel} />
+                <FavoriteButton restaurantId={r.id} size={16} />
               </View>
             </Pressable>
           ))}
@@ -136,13 +132,9 @@ const styles = StyleSheet.create({
   },
   cardFooterRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  cardFooterRight: {
-    flexDirection: "row",
+    justifyContent: "flex-end",
     alignItems: "center",
     gap: OrganicSpacing[2],
+    marginTop: 4,
   },
 });

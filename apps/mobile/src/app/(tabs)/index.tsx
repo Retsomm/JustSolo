@@ -2,14 +2,12 @@ import { useState } from "react";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { soloSeatStatusLabel } from "@justsolo/shared";
 
 import { AppHeader } from "@/components/AppHeader";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FilterBar } from "@/components/FilterBar";
 import { FriendlinessBadge } from "@/components/FriendlinessBadge";
 import { Pagination } from "@/components/Pagination";
-import { StatusTag } from "@/components/StatusTag";
 import { ShuffleIcon, FilterIcon, ArrowRightIcon } from "@/components/icons/Icons";
 import { Button } from "@/components/Button";
 import { useCategories } from "@/hooks/useCategories";
@@ -146,9 +144,6 @@ export default function HomeScreen() {
                 <Text style={[styles.heroMeta, { color: theme.textSecondary }]}>
                   {current.categoryName} · {current.address}
                 </Text>
-                <Text style={[styles.heroStatus, { color: theme.text }]}>
-                  {soloSeatStatusLabel(current.soloSeatStatus)}
-                </Text>
               </View>
             </View>
 
@@ -197,11 +192,8 @@ export default function HomeScreen() {
                   {r.address}
                 </Text>
                 <View style={styles.listCardFooterRow}>
-                  <StatusTag status={r.soloSeatStatus} />
-                  <View style={styles.listCardFooterRight}>
-                    <FriendlinessBadge score={r.soloFriendlinessScore} label={r.soloFriendlinessLabel} />
-                    <FavoriteButton restaurantId={r.id} size={16} />
-                  </View>
+                  <FriendlinessBadge score={r.soloFriendlinessScore} label={r.soloFriendlinessLabel} />
+                  <FavoriteButton restaurantId={r.id} size={16} />
                 </View>
               </Pressable>
             ))}
@@ -282,10 +274,6 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.body,
     fontSize: 13,
   },
-  heroStatus: {
-    fontFamily: FontFamily.body,
-    fontSize: 13,
-  },
   actionsRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -332,13 +320,9 @@ const styles = StyleSheet.create({
   },
   listCardFooterRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  listCardFooterRight: {
-    flexDirection: "row",
+    justifyContent: "flex-end",
     alignItems: "center",
     gap: OrganicSpacing[2],
+    marginTop: 4,
   },
 });
